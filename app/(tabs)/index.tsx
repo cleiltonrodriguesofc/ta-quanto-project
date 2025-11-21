@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin } from 'lucide-react-native';
@@ -17,6 +18,7 @@ export default function HomeScreen() {
   const [totalSavings, setTotalSavings] = useState(0);
   const [priceCount, setPriceCount] = useState(0);
   const [locationCount, setLocationCount] = useState(0);
+  const [recentPrices, setRecentPrices] = useState<PriceEntry[]>([]);
 
   useEffect(() => {
     loadStats();
@@ -28,9 +30,16 @@ export default function HomeScreen() {
       setPriceCount(prices.length);
       const pricesWithLocation = prices.filter(price => price.location);
       setLocationCount(pricesWithLocation.length);
-      // Mock savings calculation - in real app this would compare with average prices
-      const mockSavings = prices.length * 2.5; // R$2.50 average savings per shared price
+
+      // Mock savings calculation
+      const mockSavings = prices.length * 2.5;
       setTotalSavings(mockSavings);
+
+      // Get 3 most recent prices
+      const sortedPrices = [...prices].sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      setRecentPrices(sortedPrices.slice(0, 3));
     } catch (error) {
       console.error('Error loading stats:', error);
     }
@@ -63,11 +72,11 @@ export default function HomeScreen() {
     },
     {
       id: 'routes',
-      title: 'My Routes',
-      description: 'Coming soon!',
+      title: 'Shopping List',
+      description: 'Plan your shopping trip',
       icon: BarChart3,
       color: '#8B5CF6',
-      onPress: () => Alert.alert('Coming Soon', 'Route planning feature will be available in the next version!'),
+      onPress: () => router.push('/routes'),
     },
   ];
 
@@ -120,14 +129,45 @@ export default function HomeScreen() {
 
       <View style={styles.recentActivity}>
         <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.activityCard}>
-          <Text style={styles.activityText}>
-            {priceCount > 0 
-              ? `You've shared ${priceCount} price${priceCount > 1 ? 's' : ''} with the community!` 
-              : 'Start sharing prices to help your community save money!'
-            }
-          </Text>
-        </View>
+        {recentPrices.length > 0 ? (
+          recentPrices.map((price) => (
+            <View key={price.id} style={styles.activityCard}>
+              <View style={styles.activityContent}>
+                {price.imageUrl ? (
+                  <Image source={{ uri: price.imageUrl }} style={styles.activityImage} />
+                ) : (
+                  <View style={styles.placeholderActivityImage}>
+                    <Search size={20} color="#CBD5E1" />
+                  </View>
+                )}
+                <View style={styles.activityInfo}>
+                  <View style={styles.activityHeader}>
+                    <Text
+                      style={styles.activityProduct}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {price.productName}
+                    </Text>
+                    <Text style={styles.activityPrice}>R${price.price.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.activityDetails}>
+                    <Text style={styles.activitySupermarket}>{price.supermarket}</Text>
+                    <Text style={styles.activityTime}>
+                      {new Date(price.timestamp).toLocaleDateString()}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyActivityCard}>
+            <Text style={styles.emptyActivityText}>
+              Start sharing prices to help your community save money!
+            </Text>
+          </View>
+        )}
       </View>
     </ScrollView>
   );
@@ -241,14 +281,79 @@ const styles = StyleSheet.create({
   activityCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 20,
+    padding: 12,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
   },
-  activityText: {
+  activityContent: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  activityImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  placeholderActivityImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityInfo: {
+    flex: 1,
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  activityProduct: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+    marginRight: 8,
+  },
+  activityPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#10B981',
+  },
+  activityDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  activitySupermarket: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  activityTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  emptyActivityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  emptyActivityText: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
