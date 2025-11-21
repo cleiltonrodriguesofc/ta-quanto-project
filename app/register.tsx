@@ -13,14 +13,21 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Save, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Save, MapPin, Camera } from 'lucide-react-native';
 import * as Location from 'expo-location';
+import {
+  launchCameraAsync,
+  requestCameraPermissionsAsync,
+  MediaTypeOptions
+} from 'expo-image-picker';
 import { savePriceEntry } from '@/utils/storage';
 import { SupermarketSelector } from '@/components/SupermarketSelector';
+import { useSupermarketSession } from '@/context/SupermarketContext';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
 
   const [productName, setProductName] = useState('');
   const [price, setPrice] = useState('');
@@ -37,7 +44,12 @@ export default function RegisterScreen() {
     if (params.productName) setProductName(params.productName as string);
     if (params.imageUrl) setImageUrl(params.imageUrl as string);
     if (params.brand) setBrand(params.brand as string);
-  }, [params]);
+
+    // Initialize supermarket from global session if available
+    if (selectedSupermarket) {
+      setSupermarket(selectedSupermarket);
+    }
+  }, [params, selectedSupermarket]);
 
   const handleGetLocation = async () => {
     setIsLoadingLocation(true);
@@ -56,6 +68,30 @@ export default function RegisterScreen() {
     } finally {
       setIsLoadingLocation(false);
     }
+  };
+
+  const handleTakePhoto = async () => {
+    const { status } = await requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'Sorry, we need camera permissions to make this work!');
+      return;
+    }
+
+    const result = await launchCameraAsync({
+      mediaTypes: MediaTypeOptions.Images,
+      allowsEditing: false,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setImageUrl(result.assets[0].uri);
+    }
+  };
+
+  const handleSupermarketChange = (name: string) => {
+    setSupermarket(name);
+    setSelectedSupermarket(name); // Update global session
   };
 
   const handleSave = async () => {
@@ -81,7 +117,10 @@ export default function RegisterScreen() {
       });
 
       Alert.alert('Success', 'Price registered successfully!', [
-        { text: 'OK', onPress: () => router.back() }
+        {
+          text: 'OK',
+          onPress: () => router.replace(`/product/${barcode}`)
+        }
       ]);
     } catch (error) {
       console.error('Error saving price:', error);
@@ -107,11 +146,21 @@ export default function RegisterScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.formCard}>
 
-          {imageUrl ? (
-            <View style={styles.imageContainer}>
-              <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="contain" />
-            </View>
-          ) : null}
+          <View style={styles.imageContainer}>
+            {imageUrl ? (
+              <TouchableOpacity onPress={handleTakePhoto}>
+                <Image source={{ uri: imageUrl }} style={styles.productImage} resizeMode="contain" />
+                <View style={styles.editImageBadge}>
+                  <Camera size={16} color="#FFFFFF" />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.placeholderImage} onPress={handleTakePhoto}>
+                <Camera size={40} color="#9CA3AF" />
+                <Text style={styles.placeholderText}>Take Photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Product Name *</Text>
@@ -138,7 +187,7 @@ export default function RegisterScreen() {
             <Text style={styles.label}>Supermarket *</Text>
             <SupermarketSelector
               selectedSupermarket={supermarket}
-              onSelect={setSupermarket}
+              onSelect={handleSupermarketChange}
             />
           </View>
 
@@ -232,13 +281,40 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   productImage: {
     width: 150,
     height: 150,
     borderRadius: 12,
     backgroundColor: '#F3F4F6',
+  },
+  editImageBadge: {
+    position: 'absolute',
+    bottom: -8,
+    right: -8,
+    backgroundColor: '#3A7DE8',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  placeholderImage: {
+    width: 150,
+    height: 150,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+  },
+  placeholderText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
   inputGroup: {
     marginBottom: 20,

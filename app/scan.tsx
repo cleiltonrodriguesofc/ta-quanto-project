@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, Flashlight, X } from 'lucide-react-native';
 import { getProductByBarcode } from '@/utils/storage';
 import { fetchProductFromOpenFoodFacts } from '@/utils/api';
+import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
 
 const { width } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
@@ -63,49 +64,24 @@ export default function ScanScreen() {
         const apiProduct = await fetchProductFromOpenFoodFacts(data);
 
         if (apiProduct) {
-          // Found in API, but not in local DB -> Register with pre-filled data
-          Alert.alert(
-            'Product Found (New)',
-            `${apiProduct.name}\nWould you like to register a price for this product?`,
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => setScanned(false) },
-              {
-                text: 'Register Price',
-                onPress: () => {
-                  router.push({
-                    pathname: '/register',
-                    params: {
-                      barcode: data,
-                      productName: apiProduct.name,
-                      imageUrl: apiProduct.imageUrl,
-                      brand: apiProduct.brand
-                    }
-                  });
-                  setTimeout(() => setScanned(false), 1000);
-                }
-              }
-            ]
-          );
+          // Found in API -> Redirect to Register with pre-filled data
+          router.push({
+            pathname: '/register',
+            params: {
+              barcode: data,
+              productName: apiProduct.name,
+              imageUrl: apiProduct.imageUrl,
+              brand: apiProduct.brand
+            }
+          });
         } else {
-          // 3. Not found anywhere -> Manual Register
-          Alert.alert(
-            'Product Not Found',
-            `Barcode ${data} is not in our database. Would you like to register it?`,
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => setScanned(false) },
-              {
-                text: 'Register',
-                onPress: () => {
-                  router.push({
-                    pathname: '/register',
-                    params: { barcode: data }
-                  });
-                  setTimeout(() => setScanned(false), 1000);
-                },
-              },
-            ]
-          );
+          // 3. Not found anywhere -> Redirect to Register (Manual)
+          router.push({
+            pathname: '/register',
+            params: { barcode: data }
+          });
         }
+        setTimeout(() => setScanned(false), 1000);
       }
     } catch (error) {
       console.error('Error processing barcode:', error);
@@ -159,6 +135,9 @@ export default function ScanScreen() {
           </View>
         </View>
       </CameraView>
+
+      {/* Force Supermarket Selection if not set */}
+      <SupermarketSessionModal />
     </View>
   );
 }

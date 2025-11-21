@@ -131,7 +131,11 @@ export default function HomeScreen() {
         <Text style={styles.sectionTitle}>Recent Activity</Text>
         {recentPrices.length > 0 ? (
           recentPrices.map((price) => (
-            <View key={price.id} style={styles.activityCard}>
+            <TouchableOpacity
+              key={price.id}
+              style={styles.activityCard}
+              onPress={() => router.push(`/product/${price.barcode}`)}
+            >
               <View style={styles.activityContent}>
                 {price.imageUrl ? (
                   <Image source={{ uri: price.imageUrl }} style={styles.activityImage} />
@@ -159,7 +163,7 @@ export default function HomeScreen() {
                   </View>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyActivityCard}>
