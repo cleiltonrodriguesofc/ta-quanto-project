@@ -125,49 +125,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
         </View>
-      </View>
 
-      <View style={styles.recentActivity}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        {recentPrices.length > 0 ? (
-          recentPrices.map((price) => (
-            <View key={price.id} style={styles.activityCard}>
-              <View style={styles.activityContent}>
-                {price.imageUrl ? (
-                  <Image source={{ uri: price.imageUrl }} style={styles.activityImage} />
-                ) : (
-                  <View style={styles.placeholderActivityImage}>
-                    <Search size={20} color="#CBD5E1" />
-                  </View>
-                )}
-                <View style={styles.activityInfo}>
-                  <View style={styles.activityHeader}>
-                    <Text
-                      style={styles.activityProduct}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {price.productName}
-                    </Text>
-                    <Text style={styles.activityPrice}>R${price.price.toFixed(2)}</Text>
-                  </View>
-                  <View style={styles.activityDetails}>
-                    <Text style={styles.activitySupermarket}>{price.supermarket}</Text>
-                    <Text style={styles.activityTime}>
-                      {new Date(price.timestamp).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          ))
-        ) : (
-          <View style={styles.emptyActivityCard}>
-            <Text style={styles.emptyActivityText}>
-              Start sharing prices to help your community save money!
-            </Text>
-          </View>
-        )}
       </View>
     </ScrollView>
   );

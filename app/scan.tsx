@@ -124,41 +124,40 @@ export default function ScanScreen() {
         barcodeScannerSettings={{
           barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"],
         }}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => router.back()}
-            >
-              <ArrowLeft size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-            <Text style={styles.title}>Scan Barcode</Text>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => setFlash(!flash)}
-            >
-              <Flashlight size={24} color={flash ? '#F59E0B' : '#FFFFFF'} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.scanArea}>
-            <View style={styles.scanFrame} />
-            <Text style={styles.scanText}>
-              Align barcode within the frame
-            </Text>
-          </View>
-
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.manualButton}
-              onPress={() => router.push('/register')}
-            >
-              <Text style={styles.manualButtonText}>Enter Manually</Text>
-            </TouchableOpacity>
-          </View>
+      />
+      <View style={styles.overlay}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Scan Barcode</Text>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => setFlash(!flash)}
+          >
+            <Flashlight size={24} color={flash ? '#F59E0B' : '#FFFFFF'} />
+          </TouchableOpacity>
         </View>
-      </CameraView>
+
+        <View style={styles.scanArea}>
+          <View style={styles.scanFrame} />
+          <Text style={styles.scanText}>
+            Align barcode within the frame
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.manualButton}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.manualButtonText}>Enter Manually</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
@@ -217,9 +216,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
+    zIndex: 1,
   },
   header: {
     flexDirection: 'row',

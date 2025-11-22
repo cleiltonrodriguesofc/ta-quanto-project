@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Image,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Search, Clock, TrendingUp, User } from 'lucide-react-native';
 import { getStoredPrices, getUserProfile } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
@@ -17,6 +18,7 @@ import { formatLocationDisplay } from '@/utils/location';
 import { UserProfile } from '@/types/user';
 
 export default function CommunityScreen() {
+  const router = useRouter();
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'price'>('recent');
@@ -74,7 +76,10 @@ export default function CommunityScreen() {
   }, [prices, searchQuery, sortBy, filterBy, userProfile]);
 
   const renderPriceItem = ({ item }: { item: PriceEntry }) => (
-    <View style={styles.priceCard}>
+    <TouchableOpacity
+      style={styles.priceCard}
+      onPress={() => router.push(`/product/${item.barcode}`)}
+    >
       <View style={styles.cardContent}>
         {item.imageUrl ? (
           <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
@@ -106,7 +111,7 @@ export default function CommunityScreen() {
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
