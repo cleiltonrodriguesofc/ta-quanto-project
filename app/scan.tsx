@@ -100,129 +100,162 @@ export default function ScanScreen() {
         barcodeScannerSettings={{
           barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"],
         }}
-      />
-      <View style={styles.overlay}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Scan Barcode</Text>
-          <TouchableOpacity
-            flex: 1,
-          backgroundColor: '#000',
+      >
+        <View style={styles.overlay}>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => router.back()}
+            >
+              <ArrowLeft size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Scan Barcode</Text>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setFlash(!flash)}
+            >
+              <Flashlight size={24} color={flash ? '#F59E0B' : '#FFFFFF'} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.scanArea}>
+            <View style={styles.scanFrame} />
+            <Text style={styles.scanText}>
+              Align barcode within the frame
+            </Text>
+          </View>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={styles.manualButton}
+              onPress={() => router.push('/register')}
+            >
+              <Text style={styles.manualButtonText}>Enter Manually</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </CameraView>
+
+      {/* Force Supermarket Selection if not set */}
+      <SupermarketSessionModal />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
   },
-          permissionContainer: {
-            flex: 1,
-          backgroundColor: '#F8FAFC',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 20,
+  permissionContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
-          permissionCard: {
-            backgroundColor: '#FFFFFF',
-          borderRadius: 20,
-          padding: 32,
-          alignItems: 'center',
-          shadowColor: '#000',
-          shadowOffset: {width: 0, height: 4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 4,
-          width: '100%',
-          maxWidth: 350,
+  permissionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    width: '100%',
+    maxWidth: 350,
   },
-          permissionTitle: {
-            fontSize: 20,
-          fontWeight: 'bold',
-          color: '#1F2937',
-          marginBottom: 12,
-          textAlign: 'center',
+  permissionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 12,
+    textAlign: 'center',
   },
-          permissionDescription: {
-            fontSize: 16,
-          color: '#6B7280',
-          textAlign: 'center',
-          marginBottom: 24,
-          lineHeight: 24,
+  permissionDescription: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
   },
-          permissionButton: {
-            backgroundColor: '#3A7DE8',
-          borderRadius: 12,
-          paddingHorizontal: 24,
-          paddingVertical: 12,
+  permissionButton: {
+    backgroundColor: '#3A7DE8',
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-          permissionButtonText: {
-            fontSize: 16,
-          fontWeight: 'bold',
-          color: '#FFFFFF',
+  permissionButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-          camera: {
-            flex: 1,
+  camera: {
+    flex: 1,
   },
-          overlay: {
-            ...StyleSheet.absoluteFillObject,
-            justifyContent: 'space-between',
-          zIndex: 1,
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'space-between',
   },
-          header: {
-            flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingTop: 60,
-          paddingHorizontal: 20,
-          paddingBottom: 20,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-          title: {
-            fontSize: 18,
-          fontWeight: 'bold',
-          color: '#FFFFFF',
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-          iconButton: {
-            padding: 8,
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          borderRadius: 20,
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
   },
-          scanArea: {
-            alignItems: 'center',
-          justifyContent: 'center',
+  scanArea: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-          scanFrame: {
-            width: SCAN_SIZE,
-          height: SCAN_SIZE,
-          borderWidth: 2,
-          borderColor: '#3A7DE8',
-          borderRadius: 20,
-          backgroundColor: 'transparent',
+  scanFrame: {
+    width: SCAN_SIZE,
+    height: SCAN_SIZE,
+    borderWidth: 2,
+    borderColor: '#3A7DE8',
+    borderRadius: 20,
+    backgroundColor: 'transparent',
   },
-          scanText: {
-            color: '#FFFFFF',
-          marginTop: 20,
-          fontSize: 16,
-          fontWeight: '500',
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          borderRadius: 20,
-          overflow: 'hidden',
+  scanText: {
+    color: '#FFFFFF',
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: '500',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    overflow: 'hidden',
   },
-          footer: {
-            padding: 40,
-          alignItems: 'center',
+  footer: {
+    padding: 40,
+    alignItems: 'center',
   },
-          manualButton: {
-            paddingVertical: 12,
-          paddingHorizontal: 24,
-          backgroundColor: 'rgba(255,255,255,0.2)',
-          borderRadius: 24,
-          borderWidth: 1,
-          borderColor: '#FFFFFF',
+  manualButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
   },
-          manualButtonText: {
-            color: '#FFFFFF',
-          fontSize: 16,
-          fontWeight: '600',
+  manualButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
