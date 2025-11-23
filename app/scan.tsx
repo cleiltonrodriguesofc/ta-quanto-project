@@ -196,9 +196,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
+    zIndex: 1,
   },
   header: {
     flexDirection: 'row',
