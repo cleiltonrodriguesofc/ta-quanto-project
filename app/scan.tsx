@@ -52,18 +52,25 @@ export default function ScanScreen() {
     setScanned(true);
 
     try {
+      console.log(`[Scan] Processing barcode: ${data}`);
+
       // 1. Check local DB
       const existingProduct = await getProductByBarcode(data);
 
       if (existingProduct) {
+        console.log('[Scan] Found in local DB:', existingProduct.name);
         // Found locally -> Redirect to Product Details
         router.push(`/product/${data}`);
         setTimeout(() => setScanned(false), 1000);
       } else {
+        console.log('[Scan] Not found locally. Checking API...');
         // 2. Check Public API
         const apiProduct = await fetchProductFromOpenFoodFacts(data);
 
         if (apiProduct) {
+          console.log('[Scan] Found in API:', apiProduct.name);
+          console.log('[Scan] API Image URL:', apiProduct.imageUrl);
+
           // Found in API -> Redirect to Register with pre-filled data
           router.push({
             pathname: '/register',
@@ -75,6 +82,7 @@ export default function ScanScreen() {
             }
           });
         } else {
+          console.log('[Scan] Not found in API. Redirecting to manual entry.');
           // 3. Not found anywhere -> Redirect to Register (Manual)
           router.push({
             pathname: '/register',

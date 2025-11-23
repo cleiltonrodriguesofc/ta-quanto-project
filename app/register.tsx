@@ -40,6 +40,7 @@ export default function RegisterScreen() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   useEffect(() => {
+    console.log('Register params:', params);
     if (params.barcode) setBarcode(params.barcode as string);
     if (params.productName) setProductName(params.productName as string);
     if (params.imageUrl) setImageUrl(params.imageUrl as string);
