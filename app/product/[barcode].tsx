@@ -7,17 +7,20 @@ import {
     Image,
     TouchableOpacity,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp } from 'lucide-react-native';
-import { getPricesByBarcode } from '@/utils/storage';
+import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp, Check, X } from 'lucide-react-native';
+import { getPricesByBarcode, savePriceEntry } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
 import { formatTimeAgo } from '@/utils/date';
 import { formatLocationDisplay } from '@/utils/location';
+import { useSupermarketSession } from '@/context/SupermarketContext';
 
 export default function ProductDetailsScreen() {
     const { barcode } = useLocalSearchParams<{ barcode: string }>();
     const router = useRouter();
+    const { selectedSupermarket } = useSupermarketSession();
     const [prices, setPrices] = useState<PriceEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [productInfo, setProductInfo] = useState<{
@@ -53,18 +56,78 @@ export default function ProductDetailsScreen() {
         }
     };
 
+    // Filter to get only the latest price for each supermarket
+    const getLatestPricesPerSupermarket = () => {
+        const latestMap = new Map<string, PriceEntry>();
+        // prices is already sorted by date desc
+        prices.forEach(p => {
+            if (!latestMap.has(p.supermarket)) {
+                latestMap.set(p.supermarket, p);
+            }
+        });
+        return Array.from(latestMap.values());
+    };
+
+    const latestPrices = getLatestPricesPerSupermarket();
+
     const getPriceStats = () => {
-        if (prices.length === 0) return null;
-        const values = prices.map(p => p.price);
-        const min = Math.min(...values);
+        if (latestPrices.length === 0) return null;
+
+        // Find entry with minimum price
+        const minEntry = latestPrices.reduce((prev, curr) =>
+            prev.price < curr.price ? prev : curr
+        );
+
+        const values = latestPrices.map(p => p.price);
         const max = Math.max(...values);
         const avg = values.reduce((a, b) => a + b, 0) / values.length;
-        return { min, max, avg };
+
+        return {
+            min: minEntry.price,
+            minSupermarket: minEntry.supermarket,
+            max,
+            avg
+        };
     };
 
     const stats = getPriceStats();
 
-    const handleAddPrice = () => {
+    // Helper to check if date is today
+    const isToday = (dateString: string) => {
+        const date = new Date(dateString);
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
+    };
+
+    // Find price for current supermarket session (from latest list)
+    const currentSupermarketPrice = selectedSupermarket
+        ? latestPrices.find(p => p.supermarket === selectedSupermarket)
+        : null;
+
+    // Show verification only if we have a price and it wasn't updated today
+    const showVerification = selectedSupermarket &&
+        currentSupermarketPrice &&
+        !isToday(currentSupermarketPrice.timestamp);
+
+    const handleConfirmPrice = async () => {
+        if (!currentSupermarketPrice) return;
+
+        try {
+            await savePriceEntry({
+                ...currentSupermarketPrice,
+                timestamp: new Date().toISOString(),
+            });
+            Alert.alert('Success', 'Price confirmed!');
+            loadPrices(); // Refresh list
+        } catch (error) {
+            console.error('Error confirming price:', error);
+            Alert.alert('Error', 'Failed to confirm price');
+        }
+    };
+
+    const handleUpdatePrice = () => {
         router.push({
             pathname: '/register',
             params: {
@@ -74,6 +137,10 @@ export default function ProductDetailsScreen() {
                 brand: productInfo?.brand,
             },
         });
+    };
+
+    const handleAddPrice = () => {
+        handleUpdatePrice();
     };
 
     const renderPriceItem = ({ item }: { item: PriceEntry }) => (
@@ -116,7 +183,7 @@ export default function ProductDetailsScreen() {
             </View>
 
             <FlatList
-                data={prices}
+                data={latestPrices}
                 renderItem={renderPriceItem}
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
@@ -137,6 +204,34 @@ export default function ProductDetailsScreen() {
                             </View>
                         </View>
 
+                        {/* Price Verification Card */}
+                        {showVerification && (
+                            <View style={styles.verificationCard}>
+                                <Text style={styles.verificationTitle}>
+                                    You are at <Text style={{ fontWeight: 'bold' }}>{selectedSupermarket}</Text>
+                                </Text>
+                                <Text style={styles.verificationText}>
+                                    Is the price still <Text style={styles.verificationPrice}>R${currentSupermarketPrice.price.toFixed(2)}</Text>?
+                                </Text>
+                                <View style={styles.verificationButtons}>
+                                    <TouchableOpacity
+                                        style={[styles.verifyButton, styles.verifyButtonNo]}
+                                        onPress={handleUpdatePrice}
+                                    >
+                                        <X size={20} color="#EF4444" />
+                                        <Text style={[styles.verifyButtonText, { color: '#EF4444' }]}>No, Update</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.verifyButton, styles.verifyButtonYes]}
+                                        onPress={handleConfirmPrice}
+                                    >
+                                        <Check size={20} color="#10B981" />
+                                        <Text style={[styles.verifyButtonText, { color: '#10B981' }]}>Yes, Confirm</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
                         {stats && (
                             <View style={styles.statsContainer}>
                                 <View style={styles.statItem}>
@@ -146,6 +241,7 @@ export default function ProductDetailsScreen() {
                                         <Text style={[styles.statValue, { color: '#10B981' }]}>
                                             R${stats.min.toFixed(2)}
                                         </Text>
+                                        <Text style={styles.statSupermarket}>{stats.minSupermarket}</Text>
                                     </View>
                                 </View>
                                 <View style={styles.statDivider} />
@@ -284,6 +380,58 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         color: '#1F2937',
+    },
+    statSupermarket: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginTop: 2,
+    },
+    verificationCard: {
+        backgroundColor: '#EFF6FF',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#BFDBFE',
+    },
+    verificationTitle: {
+        fontSize: 14,
+        color: '#1E40AF',
+        marginBottom: 4,
+    },
+    verificationText: {
+        fontSize: 16,
+        color: '#1E3A8A',
+        marginBottom: 12,
+    },
+    verificationPrice: {
+        fontWeight: 'bold',
+    },
+    verificationButtons: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    verifyButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        borderRadius: 8,
+        borderWidth: 1,
+        gap: 6,
+    },
+    verifyButtonNo: {
+        backgroundColor: '#FEF2F2',
+        borderColor: '#FECACA',
+    },
+    verifyButtonYes: {
+        backgroundColor: '#ECFDF5',
+        borderColor: '#A7F3D0',
+    },
+    verifyButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
     },
     sectionTitle: {
         fontSize: 18,
