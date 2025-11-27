@@ -10,7 +10,8 @@ import {
     Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp, Check, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp, Check, X, AlertCircle } from 'lucide-react-native';
+import { useKeepAwake } from 'expo-keep-awake';
 import { getPricesByBarcode, savePriceEntry } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
 import { formatTimeAgo } from '@/utils/date';
@@ -18,9 +19,10 @@ import { formatLocationDisplay } from '@/utils/location';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 
 export default function ProductDetailsScreen() {
+    useKeepAwake();
     const { barcode } = useLocalSearchParams<{ barcode: string }>();
     const router = useRouter();
-    const { selectedSupermarket } = useSupermarketSession();
+    const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
     const [prices, setPrices] = useState<PriceEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [productInfo, setProductInfo] = useState<{
@@ -106,10 +108,7 @@ export default function ProductDetailsScreen() {
         ? latestPrices.find(p => p.supermarket === selectedSupermarket)
         : null;
 
-    // Show verification only if we have a price and it wasn't updated today
-    const showVerification = selectedSupermarket &&
-        currentSupermarketPrice &&
-        !isToday(currentSupermarketPrice.timestamp);
+    const isUpdatedToday = currentSupermarketPrice && isToday(currentSupermarketPrice.timestamp);
 
     const handleConfirmPrice = async () => {
         if (!currentSupermarketPrice) return;
@@ -143,26 +142,54 @@ export default function ProductDetailsScreen() {
         handleUpdatePrice();
     };
 
-    const renderPriceItem = ({ item }: { item: PriceEntry }) => (
-        <View style={styles.priceCard}>
-            <View style={styles.priceHeader}>
-                <Text style={styles.supermarket}>{item.supermarket}</Text>
-                <Text style={styles.price}>R${item.price.toFixed(2)}</Text>
-            </View>
-            <View style={styles.priceDetails}>
-                {item.location && (
-                    <View style={styles.detailRow}>
-                        <MapPin size={14} color="#6B7280" />
-                        <Text style={styles.detailText}>{formatLocationDisplay(item.location)}</Text>
+    const renderPriceItem = ({ item }: { item: PriceEntry }) => {
+        const isBestPrice = stats && item.price === stats.min;
+        const isSelected = item.supermarket === selectedSupermarket;
+
+        return (
+            <TouchableOpacity
+                style={[
+                    styles.priceCard,
+                    isSelected && styles.priceCardSelected,
+                    isBestPrice && styles.priceCardBest
+                ]}
+                onPress={() => setSelectedSupermarket(item.supermarket)}
+                activeOpacity={0.7}
+            >
+                <View style={styles.priceHeader}>
+                    <View style={styles.supermarketContainer}>
+                        <Text style={[styles.supermarket, isBestPrice && styles.supermarketBest]}>
+                            {item.supermarket}
+                        </Text>
+                        {isBestPrice && (
+                            <View style={styles.bestPriceBadge}>
+                                <Text style={styles.bestPriceText}>Best Price</Text>
+                            </View>
+                        )}
                     </View>
-                )}
-                <View style={styles.detailRow}>
-                    <Clock size={14} color="#6B7280" />
-                    <Text style={styles.detailText}>{formatTimeAgo(new Date(item.timestamp))}</Text>
+                    <Text style={[styles.price, isBestPrice && styles.priceBest]}>
+                        R${item.price.toFixed(2)}
+                    </Text>
                 </View>
-            </View>
-        </View>
-    );
+                <View style={styles.priceDetails}>
+                    {item.location && (
+                        <View style={styles.detailRow}>
+                            <MapPin size={14} color={isBestPrice ? "#059669" : "#6B7280"} />
+                            <Text style={[styles.detailText, isBestPrice && styles.detailTextBest]}>
+                                {formatLocationDisplay(item.location)}
+                            </Text>
+                        </View>
+                    )}
+                    <View style={styles.detailRow}>
+                        <Clock size={14} color={isBestPrice ? "#059669" : "#6B7280"} />
+                        <Text style={[styles.detailText, isBestPrice && styles.detailTextBest]}>
+                            {formatTimeAgo(new Date(item.timestamp))}
+                        </Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
 
     if (loading) {
         return (
@@ -189,6 +216,13 @@ export default function ProductDetailsScreen() {
                 contentContainerStyle={styles.listContent}
                 ListHeaderComponent={
                     <>
+                        {selectedSupermarket && (
+                            <View style={styles.supermarketBadge}>
+                                <MapPin size={24} color="#FFFFFF" />
+                                <Text style={styles.supermarketBadgeText}>{selectedSupermarket}</Text>
+                            </View>
+                        )}
+
                         <View style={styles.productCard}>
                             {productInfo?.imageUrl ? (
                                 <Image source={{ uri: productInfo.imageUrl }} style={styles.productImage} />
@@ -203,34 +237,6 @@ export default function ProductDetailsScreen() {
                                 <Text style={styles.barcode}>{barcode}</Text>
                             </View>
                         </View>
-
-                        {/* Price Verification Card */}
-                        {showVerification && (
-                            <View style={styles.verificationCard}>
-                                <Text style={styles.verificationTitle}>
-                                    You are at <Text style={{ fontWeight: 'bold' }}>{selectedSupermarket}</Text>
-                                </Text>
-                                <Text style={styles.verificationText}>
-                                    Is the price still <Text style={styles.verificationPrice}>R${currentSupermarketPrice.price.toFixed(2)}</Text>?
-                                </Text>
-                                <View style={styles.verificationButtons}>
-                                    <TouchableOpacity
-                                        style={[styles.verifyButton, styles.verifyButtonNo]}
-                                        onPress={handleUpdatePrice}
-                                    >
-                                        <X size={20} color="#EF4444" />
-                                        <Text style={[styles.verifyButtonText, { color: '#EF4444' }]}>No, Update</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.verifyButton, styles.verifyButtonYes]}
-                                        onPress={handleConfirmPrice}
-                                    >
-                                        <Check size={20} color="#10B981" />
-                                        <Text style={[styles.verifyButtonText, { color: '#10B981' }]}>Yes, Confirm</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        )}
 
                         {stats && (
                             <View style={styles.statsContainer}>
@@ -255,7 +261,36 @@ export default function ProductDetailsScreen() {
                             </View>
                         )}
 
-                        <Text style={styles.sectionTitle}>Price History</Text>
+                        {currentSupermarketPrice && (
+                            <View style={[
+                                styles.verificationCard,
+                                isUpdatedToday ? styles.cardUpdated : styles.cardVerify
+                            ]}>
+                                <Text style={styles.verificationTitle}>
+                                    {isUpdatedToday ? 'Price updated today' : 'Verify Price'}
+                                </Text>
+                                <Text style={styles.verificationText}>
+                                    {isUpdatedToday
+                                        ? 'This price has been confirmed today.'
+                                        : `Is the price still R$${currentSupermarketPrice.price.toFixed(2)}?`
+                                    }
+                                </Text>
+                                {!isUpdatedToday && (
+                                    <View style={styles.verificationButtons}>
+                                        <TouchableOpacity style={[styles.verifyButton, styles.verifyButtonNo]} onPress={handleUpdatePrice}>
+                                            <X size={20} color="#EF4444" />
+                                            <Text style={styles.verifyButtonText}>No</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={[styles.verifyButton, styles.verifyButtonYes]} onPress={handleConfirmPrice}>
+                                            <Check size={20} color="#10B981" />
+                                            <Text style={styles.verifyButtonText}>Yes</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
+                        <Text style={styles.sectionTitle}>Supermarket Prices</Text>
                     </>
                 }
                 ListEmptyComponent={
@@ -338,6 +373,28 @@ const styles = StyleSheet.create({
         color: '#1F2937',
         marginBottom: 4,
     },
+    supermarketBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#3A7DE8',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 30,
+        marginBottom: 20,
+        gap: 10,
+        alignSelf: 'center',
+        shadowColor: '#3A7DE8',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 6,
+    },
+    supermarketBadgeText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
     productBrand: {
         fontSize: 14,
         color: '#6B7280',
@@ -387,18 +444,31 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     verificationCard: {
-        backgroundColor: '#EFF6FF',
         borderRadius: 12,
         padding: 16,
         marginBottom: 20,
         borderWidth: 1,
+    },
+    cardVerify: {
+        backgroundColor: '#EFF6FF',
         borderColor: '#BFDBFE',
     },
-    verificationTitle: {
-        fontSize: 14,
-        color: '#1E40AF',
-        marginBottom: 4,
+    cardUpdated: {
+        backgroundColor: '#ECFDF5',
+        borderColor: '#A7F3D0',
     },
+    cardMissing: {
+        backgroundColor: '#FFFBEB',
+        borderColor: '#FDE68A',
+    },
+    verificationTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginBottom: 8,
+    },
+    textVerify: { color: '#1E40AF' },
+    textUpdated: { color: '#065F46' },
+    textMissing: { color: '#92400E' },
     verificationText: {
         fontSize: 16,
         color: '#1E3A8A',
@@ -429,9 +499,29 @@ const styles = StyleSheet.create({
         backgroundColor: '#ECFDF5',
         borderColor: '#A7F3D0',
     },
+    verifyButtonAdd: {
+        backgroundColor: '#3A7DE8',
+        borderColor: '#2563EB',
+        borderWidth: 0,
+    },
     verifyButtonText: {
         fontSize: 14,
         fontWeight: '600',
+    },
+    verifyButtonTextWhite: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#FFFFFF',
+    },
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    statusText: {
+        fontSize: 14,
+        color: '#059669',
+        fontWeight: '500',
     },
     sectionTitle: {
         fontSize: 18,
@@ -449,6 +539,16 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 2,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    priceCardSelected: {
+        borderColor: '#3A7DE8',
+        backgroundColor: '#F0F9FF',
+    },
+    priceCardBest: {
+        borderColor: '#10B981',
+        backgroundColor: '#ECFDF5',
     },
     priceHeader: {
         flexDirection: 'row',
@@ -456,15 +556,38 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 8,
     },
+    supermarketContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     supermarket: {
         fontSize: 16,
         fontWeight: '600',
         color: '#1F2937',
     },
+    supermarketBest: {
+        color: '#059669',
+        fontWeight: 'bold',
+    },
+    bestPriceBadge: {
+        backgroundColor: '#10B981',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    bestPriceText: {
+        fontSize: 10,
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+    },
     price: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#3A7DE8',
+    },
+    priceBest: {
+        color: '#059669',
     },
     priceDetails: {
         gap: 4,
@@ -477,6 +600,9 @@ const styles = StyleSheet.create({
     detailText: {
         fontSize: 12,
         color: '#6B7280',
+    },
+    detailTextBest: {
+        color: '#047857',
     },
     emptyState: {
         alignItems: 'center',
@@ -501,5 +627,28 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4,
         elevation: 8,
+    },
+    toast: {
+        position: 'absolute',
+        bottom: 90,
+        left: 20,
+        right: 20,
+        backgroundColor: '#10B981',
+        borderRadius: 12,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 6,
+    },
+    toastText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
