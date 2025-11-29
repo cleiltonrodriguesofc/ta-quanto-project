@@ -1,27 +1,165 @@
-import { ScannedProduct } from '@/types/product';
+import { PriceEntry } from '@/types/price';
+import { UserProfile } from '@/types/user';
 
-const OPEN_FOOD_FACTS_API_URL = 'https://world.openfoodfacts.org/api/v0/product';
+// REPLACE WITH YOUR COMPUTER'S LOCAL IP ADDRESS
+// For Android Emulator use 'http://10.0.2.2:3000'
+// For Physical Device use 'http://YOUR_LOCAL_IP:3000' (e.g., 192.168.1.5)
+// To find your local IP:
+// - Windows: Open Command Prompt and run 'ipconfig' -> Look for IPv4 Address
+// - Mac/Linux: Open Terminal and run 'ifconfig' or 'hostname -I'
+export const API_URL = 'https://thirty-dolls-stay.loca.lt';
 
-export const fetchProductFromOpenFoodFacts = async (barcode: string): Promise<ScannedProduct | null> => {
+export const checkApiConnection = async (): Promise<boolean> => {
     try {
-        const response = await fetch(`${OPEN_FOOD_FACTS_API_URL}/${barcode}.json`);
+        const response = await fetch(`${API_URL}/health`, {
+            headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        });
+        const data = await response.json();
+        return data.status === 'ok';
+    } catch (error) {
+        console.log('API Connection failed:', error);
+        return false;
+    }
+};
+
+export const api = {
+    getPrices: async (barcode?: string): Promise<PriceEntry[]> => {
+        const url = barcode ? `${API_URL}/prices?barcode=${barcode}` : `${API_URL}/prices`;
+        const response = await fetch(url, {
+            headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        });
+        if (!response.ok) throw new Error('Failed to fetch prices');
+        return response.json();
+    },
+
+    addPrice: async (price: PriceEntry): Promise<void> => {
+        const response = await fetch(`${API_URL}/prices`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            },
+            body: JSON.stringify(price),
+        });
+        if (!response.ok) throw new Error('Failed to add price');
+    },
+
+    batchUploadPrices: async (prices: PriceEntry[]): Promise<void> => {
+        const response = await fetch(`${API_URL}/prices/batch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            },
+            body: JSON.stringify(prices),
+        });
+        if (!response.ok) throw new Error('Failed to batch upload prices');
+    },
+
+    getUser: async (id: string): Promise<UserProfile | null> => {
+        const response = await fetch(`${API_URL}/users/${id}`, {
+            headers: { 'Bypass-Tunnel-Reminder': 'true' }
+        });
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error('Failed to fetch user');
+        return response.json();
+    },
+
+    saveUser: async (user: UserProfile): Promise<void> => {
+        const response = await fetch(`${API_URL}/users`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            },
+            body: JSON.stringify(user),
+        });
+        if (!response.ok) throw new Error('Failed to save user');
+    },
+};
+
+export const fetchProductFromUPCitemdb = async (barcode: string) => {
+    try {
+        const response = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
         const data = await response.json();
 
-        if (data.status === 1) {
-            const product = data.product;
+        if (data.code === 'OK' && data.items && data.items.length > 0) {
+            const item = data.items[0];
             return {
-                barcode: product.code || barcode,
-                name: product.product_name || product.product_name_en || 'Unknown Product',
-                brand: product.brands,
-                quantity: product.quantity,
-                imageUrl: product.image_front_url || product.image_url,
-                rawResponse: product,
+                name: item.title,
+                brand: item.brand,
+                imageUrl: item.images && item.images.length > 0 ? item.images[0] : undefined,
             };
+        }
+        return null;
+    } catch (error) {
+        console.error('Error fetching from UPCitemdb:', error);
+        return null;
+    }
+};
+
+export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
+    try {
+        // 1. Check Local Cache
+        try {
+            const localResponse = await fetch(`${API_URL}/products/${barcode}`, {
+                headers: { 'Bypass-Tunnel-Reminder': 'true' }
+            });
+            if (localResponse.ok) {
+                const localProduct = await localResponse.json();
+                console.log('[API] Found product in local cache');
+                return localProduct;
+            }
+        } catch (e) {
+            console.log('[API] Local cache check failed, trying external');
+        }
+
+        let product = null;
+
+        // 2. Fetch from OpenFoodFacts
+        try {
+            const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+            const data = await response.json();
+
+            if (data.status === 1) {
+                product = {
+                    name: data.product.product_name,
+                    brand: data.product.brands,
+                    imageUrl: data.product.image_url,
+                };
+                console.log('[API] Found in OpenFoodFacts');
+            }
+        } catch (error) {
+            console.error('Error fetching from OpenFoodFacts:', error);
+        }
+
+        // 3. Fallback to UPCitemdb if not found
+        if (!product) {
+            console.log('[API] Not found in OpenFoodFacts, trying UPCitemdb...');
+            product = await fetchProductFromUPCitemdb(barcode);
+            if (product) console.log('[API] Found in UPCitemdb');
+        }
+
+        // 4. Save to Local Cache (Fire and Forget)
+        if (product) {
+            fetch(`${API_URL}/products`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Bypass-Tunnel-Reminder': 'true'
+                },
+                body: JSON.stringify({
+                    barcode,
+                    ...product
+                })
+            }).catch(err => console.error('[API] Failed to cache product:', err));
+
+            return product;
         }
 
         return null;
     } catch (error) {
-        console.error('Error fetching product from Open Food Facts:', error);
+        console.error('Error fetching product:', error);
         return null;
     }
 };

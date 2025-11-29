@@ -9,8 +9,8 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin } from 'lucide-react-native';
-import { getStoredPrices } from '@/utils/storage';
+import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin, RefreshCw } from 'lucide-react-native';
+import { getStoredPrices, syncLocalData } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
 
 export default function HomeScreen() {
@@ -45,6 +45,13 @@ export default function HomeScreen() {
     }
   };
 
+  // const handleSync = async () => {
+  //   Alert.alert('Syncing...', 'Please wait while we sync your data.');
+  //   const result = await syncLocalData();
+  //   Alert.alert(result.success ? 'Success' : 'Error', result.message);
+  //   loadStats(); // Refresh stats after sync
+  // };
+
   const actions = [
     {
       id: 'scan',
@@ -78,6 +85,14 @@ export default function HomeScreen() {
       color: '#8B5CF6',
       onPress: () => router.push('/routes'),
     },
+    // {
+    //   id: 'sync',
+    //   title: 'Sync Data',
+    //   description: 'Backup local data to server',
+    //   icon: RefreshCw,
+    //   color: '#EF4444',
+    //   onPress: handleSync,
+    // },
   ];
 
   return (
@@ -338,6 +353,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 4,
   },
   activitySupermarket: {
     fontSize: 14,
