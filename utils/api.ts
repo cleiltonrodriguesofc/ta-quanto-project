@@ -14,8 +14,15 @@ export const checkApiConnection = async (): Promise<boolean> => {
         const response = await fetch(`${API_URL}/health`, {
             headers: { 'Bypass-Tunnel-Reminder': 'true' }
         });
-        const data = await response.json();
-        return data.status === 'ok';
+
+        const text = await response.text();
+        try {
+            const data = JSON.parse(text);
+            return data.status === 'ok';
+        } catch (e) {
+            console.log('API Connection failed: Response was not JSON', text.substring(0, 100));
+            return false;
+        }
     } catch (error) {
         console.log('API Connection failed:', error);
         return false;
@@ -28,8 +35,17 @@ export const api = {
         const response = await fetch(url, {
             headers: { 'Bypass-Tunnel-Reminder': 'true' }
         });
-        if (!response.ok) throw new Error('Failed to fetch prices');
-        return response.json();
+
+        const text = await response.text();
+        if (!response.ok) {
+            throw new Error(`Failed to fetch prices: ${response.status} ${text}`);
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
+        }
     },
 
     addPrice: async (price: PriceEntry): Promise<void> => {
@@ -41,7 +57,11 @@ export const api = {
             },
             body: JSON.stringify(price),
         });
-        if (!response.ok) throw new Error('Failed to add price');
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`Failed to add price: ${response.status} ${text}`);
+        }
     },
 
     batchUploadPrices: async (prices: PriceEntry[]): Promise<void> => {
@@ -53,16 +73,30 @@ export const api = {
             },
             body: JSON.stringify(prices),
         });
-        if (!response.ok) throw new Error('Failed to batch upload prices');
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`Failed to batch upload prices: ${response.status} ${text}`);
+        }
     },
 
     getUser: async (id: string): Promise<UserProfile | null> => {
         const response = await fetch(`${API_URL}/users/${id}`, {
             headers: { 'Bypass-Tunnel-Reminder': 'true' }
         });
+
         if (response.status === 404) return null;
-        if (!response.ok) throw new Error('Failed to fetch user');
-        return response.json();
+
+        const text = await response.text();
+        if (!response.ok) {
+            throw new Error(`Failed to fetch user: ${response.status} ${text}`);
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
+        }
     },
 
     saveUser: async (user: UserProfile): Promise<void> => {
@@ -74,7 +108,11 @@ export const api = {
             },
             body: JSON.stringify(user),
         });
-        if (!response.ok) throw new Error('Failed to save user');
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`Failed to save user: ${response.status} ${text}`);
+        }
     },
 };
 

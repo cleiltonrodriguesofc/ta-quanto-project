@@ -25,8 +25,18 @@ export const SupermarketService = {
             const response = await fetch(`${API_URL}/supermarkets`, {
                 headers: { 'Bypass-Tunnel-Reminder': 'true' }
             });
-            if (!response.ok) throw new Error('Failed to fetch supermarkets');
-            return await response.json();
+
+            const text = await response.text();
+            if (!response.ok) {
+                throw new Error(`Failed to fetch supermarkets: ${response.status} ${text}`);
+            }
+
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Invalid JSON response from server (supermarkets):', text.substring(0, 100));
+                return [];
+            }
         } catch (error) {
             console.error('Error fetching supermarkets:', error);
             return [];
@@ -43,12 +53,21 @@ export const SupermarketService = {
             body: JSON.stringify({ name }),
         });
 
+        const text = await response.text();
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to add supermarket');
+            try {
+                const errorData = JSON.parse(text);
+                throw new Error(errorData.error || 'Failed to add supermarket');
+            } catch (e) {
+                throw new Error(`Failed to add supermarket: ${response.status} ${text}`);
+            }
         }
 
-        return await response.json();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
+        }
     },
 
     getNearest: (latitude: number, longitude: number, supermarkets: Supermarket[]): Supermarket | null => {
