@@ -7,7 +7,7 @@ import { UserProfile } from '@/types/user';
 // To find your local IP:
 // - Windows: Open Command Prompt and run 'ipconfig' -> Look for IPv4 Address
 // - Mac/Linux: Open Terminal and run 'ifconfig' or 'hostname -I'
-export const API_URL = 'https://thirty-dolls-stay.loca.lt';
+export const API_URL = 'http://192.168.1.5:3001';
 
 export const checkApiConnection = async (): Promise<boolean> => {
     try {
