@@ -3,8 +3,8 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Heart, MessageCircle, Share2, MoreHorizontal, TrendingDown } from 'lucide-react-native';
 import { SocialPost } from '@/types/social';
 import { formatTimeAgo } from '@/utils/date';
-
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 interface SocialPostCardProps {
     post: SocialPost;
@@ -12,6 +12,8 @@ interface SocialPostCardProps {
 
 export default function SocialPostCard({ post }: SocialPostCardProps) {
     const router = useRouter();
+    const { t } = useTranslation();
+
     const renderContent = () => {
         switch (post.type) {
             case 'photo':
@@ -94,7 +96,7 @@ export default function SocialPostCard({ post }: SocialPostCardProps) {
                             <View style={styles.promotionOverlay}>
                                 <View style={styles.promotionBadge}>
                                     <TrendingDown size={16} color="#FFFFFF" />
-                                    <Text style={styles.promotionText}>Offer</Text>
+                                    <Text style={styles.promotionText}>{t('offer')}</Text>
                                 </View>
                                 <View style={styles.priceContainer}>
                                     {post.content.oldPrice && (

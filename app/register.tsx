@@ -23,10 +23,12 @@ import {
 import { savePriceEntry } from '@/utils/storage';
 import { SupermarketSelector } from '@/components/SupermarketSelector';
 import { useSupermarketSession } from '@/context/SupermarketContext';
+import { useTranslation } from 'react-i18next';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { t } = useTranslation();
   const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
 
   const [productName, setProductName] = useState('');
@@ -57,7 +59,7 @@ export default function RegisterScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Permission to access location was denied');
+        Alert.alert(t('permission_denied'), t('location_denied'));
         return;
       }
 
@@ -65,7 +67,7 @@ export default function RegisterScreen() {
       setLocation(location);
     } catch (error) {
       console.error('Error getting location:', error);
-      Alert.alert('Error', 'Failed to get location');
+      Alert.alert(t('error'), t('error'));
     } finally {
       setIsLoadingLocation(false);
     }
@@ -74,7 +76,7 @@ export default function RegisterScreen() {
   const handleTakePhoto = async () => {
     const { status } = await requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Sorry, we need camera permissions to make this work!');
+      Alert.alert(t('permission_denied'), t('camera_denied_msg'));
       return;
     }
 
@@ -97,7 +99,7 @@ export default function RegisterScreen() {
 
   const handleSave = async () => {
     if (!productName || !price || !supermarket || !barcode) {
-      Alert.alert('Missing Information', 'Please fill in all required fields (Name, Price, Supermarket)');
+      Alert.alert(t('missing_info'), t('fill_required'));
       return;
     }
 
@@ -117,7 +119,7 @@ export default function RegisterScreen() {
         } : undefined,
       });
 
-      Alert.alert('Success', 'Price registered successfully!', [
+      Alert.alert(t('success'), t('price_added'), [
         {
           text: 'OK',
           onPress: () => router.replace(`/product/${barcode}`)
@@ -125,7 +127,7 @@ export default function RegisterScreen() {
       ]);
     } catch (error) {
       console.error('Error saving price:', error);
-      Alert.alert('Error', 'Failed to save price');
+      Alert.alert(t('error'), t('error'));
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +142,7 @@ export default function RegisterScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.title}>Register Price</Text>
+        <Text style={styles.title}>{t('register_price')}</Text>
         <View style={styles.placeholder} />
       </View>
 
@@ -158,13 +160,13 @@ export default function RegisterScreen() {
             ) : (
               <TouchableOpacity style={styles.placeholderImage} onPress={handleTakePhoto}>
                 <Camera size={40} color="#9CA3AF" />
-                <Text style={styles.placeholderText}>Take Photo</Text>
+                <Text style={styles.placeholderText}>{t('take_photo')}</Text>
               </TouchableOpacity>
             )}
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Product Name *</Text>
+            <Text style={styles.label}>{t('product_name')} *</Text>
             <TextInput
               style={styles.input}
               value={productName}
@@ -174,7 +176,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Price (R$) *</Text>
+            <Text style={styles.label}>{t('price')} (R$) *</Text>
             <TextInput
               style={styles.input}
               value={price}
@@ -185,7 +187,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Supermarket *</Text>
+            <Text style={styles.label}>{t('supermarket')} *</Text>
             <SupermarketSelector
               selectedSupermarket={supermarket}
               onSelect={handleSupermarketChange}
@@ -193,7 +195,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Brand (Optional)</Text>
+            <Text style={styles.label}>{t('brand_optional')}</Text>
             <TextInput
               style={styles.input}
               value={brand}
@@ -214,7 +216,7 @@ export default function RegisterScreen() {
                 <MapPin size={20} color={location ? '#10B981' : '#6B7280'} />
               )}
               <Text style={[styles.locationButtonText, location && styles.locationButtonTextActive]}>
-                {location ? 'Location Added' : 'Add Location'}
+                {location ? t('location_added') : t('add_location')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -229,7 +231,7 @@ export default function RegisterScreen() {
             ) : (
               <>
                 <Save size={20} color="#FFFFFF" />
-                <Text style={styles.saveButtonText}>Save Price</Text>
+                <Text style={styles.saveButtonText}>{t('save')}</Text>
               </>
             )}
           </TouchableOpacity>

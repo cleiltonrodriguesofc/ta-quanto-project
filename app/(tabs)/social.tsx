@@ -5,9 +5,11 @@ import { Plus, Bell } from 'lucide-react-native';
 import { MOCK_POSTS } from '@/utils/mockSocialData';
 import SocialPostCard from '@/components/SocialPostCard';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 export default function SocialScreen() {
     const router = useRouter();
+    const { t } = useTranslation();
 
     const handleCreatePost = () => {
         router.push('/create-post' as any);
@@ -19,7 +21,7 @@ export default function SocialScreen() {
 
             {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Social</Text>
+                <Text style={styles.headerTitle}>{t('social')}</Text>
                 <TouchableOpacity style={styles.iconButton}>
                     <Bell size={24} color="#1F2937" />
                 </TouchableOpacity>

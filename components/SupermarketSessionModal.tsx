@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import { SupermarketSelector } from './SupermarketSelector';
+import { useTranslation } from 'react-i18next';
 
 export const SupermarketSessionModal: React.FC = () => {
+    const { t } = useTranslation();
     const { selectedSupermarket, setSelectedSupermarket, isLoading } = useSupermarketSession();
     const [visible, setVisible] = useState(false);
 
@@ -31,9 +33,9 @@ export const SupermarketSessionModal: React.FC = () => {
         >
             <View style={styles.overlay}>
                 <View style={styles.card}>
-                    <Text style={styles.title}>Where are you shopping?</Text>
+                    <Text style={styles.title}>{t('where_shopping')}</Text>
                     <Text style={styles.description}>
-                        Select a supermarket to start registering prices. This will be set for your current session.
+                        {t('select_supermarket_session_desc')}
                     </Text>
 
                     <View style={styles.selectorContainer}>

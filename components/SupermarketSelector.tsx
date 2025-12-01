@@ -7,10 +7,15 @@ import {
     Modal,
     FlatList,
     ActivityIndicator,
+    TextInput,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
-import { MapPin, X, Check, Store } from 'lucide-react-native';
+import { MapPin, X, Check, Store, Plus, Search } from 'lucide-react-native';
 import { Supermarket } from '@/types/supermarket';
 import { useSupermarkets } from '@/hooks/useSupermarkets';
+import { useTranslation } from 'react-i18next';
 
 interface SupermarketSelectorProps {
     selectedSupermarket: string;
@@ -21,13 +26,30 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
     selectedSupermarket,
     onSelect,
 }) => {
+    const { t } = useTranslation();
     const [modalVisible, setModalVisible] = useState(false);
-    const { supermarkets, nearestSupermarket, isLoading } = useSupermarkets();
+    const [searchText, setSearchText] = useState('');
+    const { supermarkets, nearestSupermarket, isLoading, addSupermarket } = useSupermarkets();
 
     const handleSelect = (name: string) => {
         onSelect(name);
         setModalVisible(false);
+        setSearchText('');
     };
+
+    const handleAddSupermarket = async () => {
+        if (!searchText.trim()) return;
+        try {
+            const newSupermarket = await addSupermarket(searchText.trim());
+            handleSelect(newSupermarket.name);
+        } catch (error: any) {
+            Alert.alert(t('error'), error.message || t('add_supermarket_error'));
+        }
+    };
+
+    const filteredSupermarkets = supermarkets.filter(s =>
+        s.name.toLowerCase().includes(searchText.toLowerCase())
+    );
 
     const renderItem = ({ item }: { item: Supermarket }) => {
         const isSelected = item.name === selectedSupermarket;
@@ -48,13 +70,13 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
                             {item.name}
                         </Text>
                         <Text style={styles.itemDetails}>
-                            {item.type} • {item.address}
+                            {item.type} • {item.address || 'No address'}
                         </Text>
                     </View>
                     {isNearest && (
                         <View style={styles.badge}>
                             <MapPin size={12} color="#FFFFFF" />
-                            <Text style={styles.badgeText}>Near You</Text>
+                            <Text style={styles.badgeText}>{t('near_you')}</Text>
                         </View>
                     )}
                     {isSelected && !isNearest && <Check size={20} color="#3A7DE8" />}
@@ -77,12 +99,12 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
                             selectedSupermarket ? styles.selectorTextSelected : styles.selectorTextPlaceholder,
                         ]}
                     >
-                        {selectedSupermarket || 'Select Supermarket'}
+                        {selectedSupermarket || t('select_supermarket')}
                     </Text>
                 </View>
                 {nearestSupermarket && !selectedSupermarket && (
                     <View style={styles.suggestionBadge}>
-                        <Text style={styles.suggestionText}>Suggested</Text>
+                        <Text style={styles.suggestionText}>{t('suggested')}</Text>
                     </View>
                 )}
             </TouchableOpacity>
@@ -93,13 +115,28 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
                 transparent={true}
                 onRequestClose={() => setModalVisible(false)}
             >
-                <View style={styles.modalContainer}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.modalContainer}
+                >
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select Supermarket</Text>
+                            <Text style={styles.modalTitle}>{t('select_supermarket')}</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
                                 <X size={24} color="#6B7280" />
                             </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.searchContainer}>
+                            <Search size={20} color="#9CA3AF" style={styles.searchIcon} />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder={t('search_or_add')}
+                                value={searchText}
+                                onChangeText={setSearchText}
+                                autoCapitalize="words"
+                                placeholderTextColor="#9CA3AF"
+                            />
                         </View>
 
                         {isLoading ? (
@@ -108,15 +145,28 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
                             </View>
                         ) : (
                             <FlatList
-                                data={supermarkets}
+                                data={filteredSupermarkets}
                                 renderItem={renderItem}
                                 keyExtractor={(item) => item.id.toString()}
                                 contentContainerStyle={styles.listContent}
                                 showsVerticalScrollIndicator={false}
+                                ListFooterComponent={
+                                    searchText && !filteredSupermarkets.some(s => s.name.toLowerCase() === searchText.trim().toLowerCase()) ? (
+                                        <TouchableOpacity style={styles.addButton} onPress={handleAddSupermarket}>
+                                            <Plus size={20} color="#FFFFFF" />
+                                            <Text style={styles.addButtonText}>{t('add')} "{searchText}"</Text>
+                                        </TouchableOpacity>
+                                    ) : null
+                                }
+                                ListEmptyComponent={
+                                    !searchText ? (
+                                        <Text style={styles.emptyText}>{t('no_supermarkets_found')}</Text>
+                                    ) : null
+                                }
                             />
                         )}
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </>
     );
@@ -188,6 +238,25 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#1F2937',
     },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F3F4F6',
+        margin: 20,
+        marginBottom: 10,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        height: 48,
+    },
+    searchIcon: {
+        marginRight: 8,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#1F2937',
+        height: '100%',
+    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -195,6 +264,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 20,
+        paddingTop: 0,
     },
     item: {
         padding: 16,
@@ -246,5 +316,26 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 10,
         fontWeight: 'bold',
+    },
+    addButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#3A7DE8',
+        padding: 16,
+        borderRadius: 12,
+        marginTop: 12,
+        gap: 8,
+    },
+    addButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    emptyText: {
+        textAlign: 'center',
+        color: '#6B7280',
+        marginTop: 20,
+        fontSize: 16,
     },
 });

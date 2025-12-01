@@ -13,10 +13,12 @@ import {
 import { Plus, Trash2, Check, Circle, CheckCircle2, ShoppingCart } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShoppingList, ShoppingListItem } from '@/types/list';
+import { useTranslation } from 'react-i18next';
 
 const LIST_KEY = 'taquanto_shopping_list';
 
 export default function ShoppingListScreen() {
+  const { t } = useTranslation();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -42,7 +44,7 @@ export default function ShoppingListScreen() {
       setItems(newItems);
     } catch (error) {
       console.error('Error saving shopping list:', error);
-      Alert.alert('Error', 'Failed to save changes');
+      Alert.alert(t('error'), t('save_error'));
     }
   };
 
@@ -75,12 +77,12 @@ export default function ShoppingListScreen() {
 
   const clearCompleted = () => {
     Alert.alert(
-      'Clear Completed',
-      'Remove all checked items?',
+      t('clear_completed'),
+      t('clear_completed_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('clear'),
           style: 'destructive',
           onPress: () => {
             const updatedList = items.filter(item => !item.isChecked);
@@ -124,15 +126,15 @@ export default function ShoppingListScreen() {
     >
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <Text style={styles.title}>Shopping List</Text>
+          <Text style={styles.title}>{t('shopping_list')}</Text>
           {items.some(i => i.isChecked) && (
             <TouchableOpacity onPress={clearCompleted}>
-              <Text style={styles.clearText}>Clear Completed</Text>
+              <Text style={styles.clearText}>{t('clear_completed')}</Text>
             </TouchableOpacity>
           )}
         </View>
         <Text style={styles.subtitle}>
-          {items.filter(i => !i.isChecked).length} items remaining
+          {t('items_remaining', { count: items.filter(i => !i.isChecked).length })}
         </Text>
       </View>
 
@@ -145,8 +147,8 @@ export default function ShoppingListScreen() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <ShoppingCart size={64} color="#E5E7EB" />
-            <Text style={styles.emptyText}>Your list is empty</Text>
-            <Text style={styles.emptySubtext}>Add items to plan your shopping</Text>
+            <Text style={styles.emptyText}>{t('list_empty')}</Text>
+            <Text style={styles.emptySubtext}>{t('list_empty_subtext')}</Text>
           </View>
         }
       />
@@ -155,7 +157,7 @@ export default function ShoppingListScreen() {
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
-            placeholder="Add item..."
+            placeholder={t('add_item_placeholder')}
             value={newItemName}
             onChangeText={setNewItemName}
             onSubmitEditing={addItem}

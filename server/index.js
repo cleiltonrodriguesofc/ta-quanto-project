@@ -193,6 +193,49 @@ app.post('/products', (req, res) => {
     });
 });
 
+// --- SUPERMARKETS ---
+
+// Get all supermarkets
+app.get('/supermarkets', (req, res) => {
+    db.all('SELECT * FROM supermarkets ORDER BY name ASC', [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
+// Add a new supermarket
+app.post('/supermarkets', (req, res) => {
+    const { name, type, address, latitude, longitude } = req.body;
+
+    if (!name) {
+        return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const sql = `INSERT INTO supermarkets (name, type, address, latitude, longitude) VALUES (?, ?, ?, ?, ?)`;
+    const params = [name, type || 'Supermarket', address || '', latitude || null, longitude || null];
+
+    db.run(sql, params, function (err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(409).json({ error: 'Supermarket already exists' });
+            }
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            id: this.lastID,
+            name,
+            type: type || 'Supermarket',
+            address: address || '',
+            latitude: latitude || null,
+            longitude: longitude || null
+        });
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

@@ -12,9 +12,11 @@ import { useRouter } from 'expo-router';
 import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin, RefreshCw } from 'lucide-react-native';
 import { getStoredPrices, syncLocalData } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
+import { useTranslation } from 'react-i18next';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [totalSavings, setTotalSavings] = useState(0);
   const [priceCount, setPriceCount] = useState(0);
   const [locationCount, setLocationCount] = useState(0);
@@ -45,83 +47,68 @@ export default function HomeScreen() {
     }
   };
 
-  // const handleSync = async () => {
-  //   Alert.alert('Syncing...', 'Please wait while we sync your data.');
-  //   const result = await syncLocalData();
-  //   Alert.alert(result.success ? 'Success' : 'Error', result.message);
-  //   loadStats(); // Refresh stats after sync
-  // };
-
   const actions = [
     {
       id: 'scan',
-      title: 'Scan Product',
-      description: 'Use camera to identify products',
+      title: t('scan_barcode'),
+      description: t('scan_desc'),
       icon: Camera,
       color: '#3A7DE8',
       onPress: () => router.push('/scan'),
     },
     {
       id: 'compare',
-      title: 'Compare Prices',
-      description: 'View shared prices from community',
+      title: t('community'),
+      description: t('community_desc'),
       icon: Search,
       color: '#10B981',
       onPress: () => router.push('/community'),
     },
     {
       id: 'manual',
-      title: 'Register Manually',
-      description: 'Add price without scanning',
+      title: t('enter_manually'),
+      description: t('manual_desc'),
       icon: PlusCircle,
       color: '#F59E0B',
       onPress: () => router.push('/register'),
     },
     {
       id: 'routes',
-      title: 'Shopping List',
-      description: 'Plan your shopping trip',
+      title: t('shopping_list'),
+      description: t('shopping_list_desc'),
       icon: BarChart3,
       color: '#8B5CF6',
       onPress: () => router.push('/routes'),
     },
-    // {
-    //   id: 'sync',
-    //   title: 'Sync Data',
-    //   description: 'Backup local data to server',
-    //   icon: RefreshCw,
-    //   color: '#EF4444',
-    //   onPress: handleSync,
-    // },
   ];
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.title}>TaQuanto?</Text>
-        <Text style={styles.subtitle}>Share prices, save money together</Text>
+        <Text style={styles.subtitle}>{t('welcome')}</Text>
       </View>
 
       <View style={styles.statsCard}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>R${totalSavings.toFixed(2)}</Text>
-          <Text style={styles.statLabel}>Potential Savings</Text>
+          <Text style={styles.statLabel}>{t('potential_savings')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{priceCount}</Text>
-          <Text style={styles.statLabel}>Prices Shared</Text>
+          <Text style={styles.statLabel}>{t('prices_shared')}</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <MapPin size={16} color="#6B7280" />
           <Text style={styles.statNumber}>{locationCount}</Text>
-          <Text style={styles.statLabel}>With Location</Text>
+          <Text style={styles.statLabel}>{t('with_location')}</Text>
         </View>
       </View>
 
       <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>What would you like to do?</Text>
+        <Text style={styles.sectionTitle}>{t('what_to_do')}</Text>
         <View style={styles.actionsGrid}>
           {actions.map((action) => (
             <TouchableOpacity
@@ -144,7 +131,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.recentActivity}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Text style={styles.sectionTitle}>{t('recent_prices')}</Text>
         {recentPrices.length > 0 ? (
           recentPrices.map((price) => (
             <TouchableOpacity
@@ -184,7 +171,7 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.emptyActivityCard}>
             <Text style={styles.emptyActivityText}>
-              Start sharing prices to help your community save money!
+              {t('no_products_found')}
             </Text>
           </View>
         )}

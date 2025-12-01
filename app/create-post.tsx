@@ -4,9 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { X, Image as ImageIcon, Tag, Type, Camera } from 'lucide-react-native';
 import { SocialPostType } from '@/types/social';
+import { useTranslation } from 'react-i18next';
 
 export default function CreatePostScreen() {
     const router = useRouter();
+    const { t } = useTranslation();
     const [postType, setPostType] = useState<SocialPostType>('text');
     const [text, setText] = useState('');
     const [price, setPrice] = useState('');
@@ -24,10 +26,10 @@ export default function CreatePostScreen() {
                 <TouchableOpacity onPress={() => router.back()}>
                     <X size={24} color="#1F2937" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Create Post</Text>
+                <Text style={styles.headerTitle}>{t('create_post')}</Text>
                 <TouchableOpacity onPress={handlePost} disabled={!text && !productName}>
                     <Text style={[styles.postButton, (!text && !productName) && styles.postButtonDisabled]}>
-                        Post
+                        {t('post')}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -39,27 +41,27 @@ export default function CreatePostScreen() {
                         onPress={() => setPostType('text')}
                     >
                         <Type size={20} color={postType === 'text' ? '#FFFFFF' : '#6B7280'} />
-                        <Text style={[styles.typeText, postType === 'text' && styles.typeTextActive]}>Text</Text>
+                        <Text style={[styles.typeText, postType === 'text' && styles.typeTextActive]}>{t('text')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.typeButton, postType === 'photo' && styles.typeButtonActive]}
                         onPress={() => setPostType('photo')}
                     >
                         <ImageIcon size={20} color={postType === 'photo' ? '#FFFFFF' : '#6B7280'} />
-                        <Text style={[styles.typeText, postType === 'photo' && styles.typeTextActive]}>Photo</Text>
+                        <Text style={[styles.typeText, postType === 'photo' && styles.typeTextActive]}>{t('photo')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.typeButton, postType === 'price' && styles.typeButtonActive]}
                         onPress={() => setPostType('price')}
                     >
                         <Tag size={20} color={postType === 'price' ? '#FFFFFF' : '#6B7280'} />
-                        <Text style={[styles.typeText, postType === 'price' && styles.typeTextActive]}>Price</Text>
+                        <Text style={[styles.typeText, postType === 'price' && styles.typeTextActive]}>{t('price')}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <TextInput
                     style={styles.input}
-                    placeholder="What's on your mind?"
+                    placeholder={t('whats_on_your_mind')}
                     multiline
                     value={text}
                     onChangeText={setText}
@@ -69,7 +71,7 @@ export default function CreatePostScreen() {
                 {postType === 'photo' && (
                     <TouchableOpacity style={styles.imagePlaceholder}>
                         <Camera size={40} color="#9CA3AF" />
-                        <Text style={styles.imagePlaceholderText}>Add Photo</Text>
+                        <Text style={styles.imagePlaceholderText}>{t('add_photo')}</Text>
                     </TouchableOpacity>
                 )}
 
@@ -77,13 +79,13 @@ export default function CreatePostScreen() {
                     <View style={styles.priceInputs}>
                         <TextInput
                             style={styles.priceInput}
-                            placeholder="Product Name"
+                            placeholder={t('product_name')}
                             value={productName}
                             onChangeText={setProductName}
                         />
                         <TextInput
                             style={styles.priceInput}
-                            placeholder="Price (R$)"
+                            placeholder={`${t('price')} (R$)`}
                             keyboardType="numeric"
                             value={price}
                             onChangeText={setPrice}

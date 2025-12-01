@@ -14,12 +14,14 @@ import { ArrowLeft, Flashlight, X } from 'lucide-react-native';
 import { getProductByBarcode } from '@/utils/storage';
 import { fetchProductFromOpenFoodFacts } from '@/utils/api';
 import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
+import { useTranslation } from 'react-i18next';
 
 const { width } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
 
 export default function ScanScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [flash, setFlash] = useState(false);
@@ -32,15 +34,15 @@ export default function ScanScreen() {
     return (
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
-          <Text style={styles.permissionTitle}>Camera Access Required</Text>
+          <Text style={styles.permissionTitle}>{t('camera_permission')}</Text>
           <Text style={styles.permissionDescription}>
-            We need permission to access your camera to scan product barcodes.
+            {t('camera_permission')}
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
             onPress={requestPermission}
           >
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+            <Text style={styles.permissionButtonText}>{t('grant_permission')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -93,7 +95,7 @@ export default function ScanScreen() {
       }
     } catch (error) {
       console.error('Error processing barcode:', error);
-      Alert.alert('Error', 'Failed to process barcode. Please try again.');
+      Alert.alert(t('error'), t('error'));
       setScanned(false);
     }
   };
@@ -118,7 +120,7 @@ export default function ScanScreen() {
           >
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.title}>Scan Barcode</Text>
+          <Text style={styles.title}>{t('scan_barcode')}</Text>
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => setFlash(!flash)}
@@ -130,7 +132,7 @@ export default function ScanScreen() {
         <View style={styles.scanArea}>
           <View style={styles.scanFrame} />
           <Text style={styles.scanText}>
-            Align barcode within the frame
+            {t('align_barcode')}
           </Text>
         </View>
 
@@ -139,7 +141,7 @@ export default function ScanScreen() {
             style={styles.manualButton}
             onPress={() => router.push('/register')}
           >
-            <Text style={styles.manualButtonText}>Enter Manually</Text>
+            <Text style={styles.manualButtonText}>{t('enter_manually')}</Text>
           </TouchableOpacity>
         </View>
       </View>

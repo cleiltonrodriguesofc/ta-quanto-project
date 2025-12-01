@@ -16,9 +16,11 @@ import { PriceEntry } from '@/types/price';
 import { formatTimeAgo } from '@/utils/date';
 import { formatLocationDisplay } from '@/utils/location';
 import { UserProfile } from '@/types/user';
+import { useTranslation } from 'react-i18next';
 
 export default function CommunityScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'price'>('recent');
@@ -105,7 +107,7 @@ export default function CommunityScreen() {
             {item.userId === userProfile?.id && (
               <View style={styles.myContributionTag}>
                 <User size={12} color="#3A7DE8" />
-                <Text style={styles.myContributionText}>Me</Text>
+                <Text style={styles.myContributionText}>{t('me')}</Text>
               </View>
             )}
           </View>
@@ -118,14 +120,14 @@ export default function CommunityScreen() {
     <View style={styles.emptyState}>
       <Search size={48} color="#9CA3AF" />
       <Text style={styles.emptyTitle}>
-        {filterBy === 'mine' ? 'No contributions yet' : (searchQuery ? 'No matching prices found' : 'No prices shared yet')}
+        {filterBy === 'mine' ? t('no_contributions') : (searchQuery ? t('no_matching_prices') : t('no_prices_shared'))}
       </Text>
       <Text style={styles.emptyDescription}>
         {filterBy === 'mine'
-          ? 'Start sharing prices to see them here!'
+          ? t('start_sharing_msg')
           : (searchQuery
-            ? 'Try searching for a different product'
-            : 'Start sharing prices to build the community database!'
+            ? t('try_searching_msg')
+            : t('start_sharing_community_msg')
           )
         }
       </Text>
@@ -135,8 +137,8 @@ export default function CommunityScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Community Prices</Text>
-        <Text style={styles.subtitle}>{prices.length} price{prices.length !== 1 ? 's' : ''} shared</Text>
+        <Text style={styles.title}>{t('community_prices')}</Text>
+        <Text style={styles.subtitle}>{t('prices_shared_count', { count: prices.length })}</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -144,7 +146,7 @@ export default function CommunityScreen() {
           <Search size={20} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products or supermarkets..."
+            placeholder={t('search_placeholder')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#9CA3AF"
@@ -159,7 +161,7 @@ export default function CommunityScreen() {
             onPress={() => setFilterBy('all')}
           >
             <Text style={[styles.sortButtonText, filterBy === 'all' && styles.sortButtonTextActive]}>
-              All
+              {t('all')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -168,7 +170,7 @@ export default function CommunityScreen() {
           >
             <User size={16} color={filterBy === 'mine' ? '#FFFFFF' : '#6B7280'} />
             <Text style={[styles.sortButtonText, filterBy === 'mine' && styles.sortButtonTextActive]}>
-              My Contributions
+              {t('my_contributions')}
             </Text>
           </TouchableOpacity>
           <View style={styles.divider} />
@@ -178,7 +180,7 @@ export default function CommunityScreen() {
           >
             <Clock size={16} color={sortBy === 'recent' ? '#FFFFFF' : '#6B7280'} />
             <Text style={[styles.sortButtonText, sortBy === 'recent' && styles.sortButtonTextActive]}>
-              Recent
+              {t('recent')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -187,7 +189,7 @@ export default function CommunityScreen() {
           >
             <TrendingUp size={16} color={sortBy === 'price' ? '#FFFFFF' : '#6B7280'} />
             <Text style={[styles.sortButtonText, sortBy === 'price' && styles.sortButtonTextActive]}>
-              Price
+              {t('price')}
             </Text>
           </TouchableOpacity>
         </View>

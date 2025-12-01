@@ -1,7 +1,10 @@
 import { Tabs } from 'expo-router';
 import { Chrome as Home, Users, Plus, MapPin, User, Tag } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 export default function TabLayout() {
+  const { t } = useTranslation();
+
   return (
     <Tabs
       screenOptions={{
@@ -25,7 +28,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('home'),
           tabBarIcon: ({ size, color }) => (
             <Home size={size} color={color} />
           ),
@@ -34,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="social"
         options={{
-          title: 'Social',
+          title: t('social'),
           tabBarIcon: ({ size, color }) => (
             <Users size={size} color={color} />
           ),
@@ -43,7 +46,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="community"
         options={{
-          title: 'Prices',
+          title: t('community'),
           tabBarIcon: ({ size, color }) => (
             <Tag size={size} color={color} />
           ),
@@ -52,7 +55,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="add"
         options={{
-          title: 'Add',
+          title: t('scan'),
           tabBarIcon: ({ size, color }) => (
             <Plus size={size} color={color} />
           ),
@@ -61,7 +64,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="routes"
         options={{
-          title: 'Routes',
+          title: t('routes'),
           tabBarIcon: ({ size, color }) => (
             <MapPin size={size} color={color} />
           ),
@@ -70,7 +73,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: t('profile'),
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
           ),

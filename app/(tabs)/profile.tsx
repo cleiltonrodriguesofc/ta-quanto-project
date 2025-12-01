@@ -4,9 +4,11 @@ import { User, Trash2, Save } from 'lucide-react-native';
 import { UserProfile, AVATAR_PRESETS } from '@/types/user';
 import { getUserProfile, saveUserProfile, clearAllData } from '@/utils/storage';
 import { useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -29,7 +31,7 @@ export default function ProfileScreen() {
 
   const handleSaveProfile = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Error', 'Please enter a display name');
+      Alert.alert(t('error'), t('enter_name_placeholder'));
       return;
     }
 
@@ -44,24 +46,24 @@ export default function ProfileScreen() {
     await saveUserProfile(newProfile);
     setProfile(newProfile);
     setIsEditing(false);
-    Alert.alert('Success', 'Profile saved successfully!');
+    Alert.alert(t('success'), t('success')); // Or a specific message
   };
 
   const handleClearData = () => {
     Alert.alert(
-      'Clear All Data',
-      'Are you sure you want to clear all app data? This cannot be undone.',
+      t('clear_all_data'),
+      t('clear_data_confirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('clear'),
           style: 'destructive',
           onPress: async () => {
             await clearAllData();
             setProfile(null);
             setDisplayName('');
             setIsEditing(true);
-            Alert.alert('Data Cleared', 'All local data has been removed.');
+            Alert.alert(t('data_cleared'), t('data_cleared_msg'));
           },
         },
       ]
@@ -84,11 +86,11 @@ export default function ProfileScreen() {
     return (
       <ScrollView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>{profile ? 'Edit Profile' : 'Create Profile'}</Text>
+          <Text style={styles.title}>{profile ? t('edit_profile') : t('create_profile')}</Text>
         </View>
         <View style={styles.content}>
           <View style={styles.formCard}>
-            <Text style={styles.label}>Choose Avatar</Text>
+            <Text style={styles.label}>{t('choose_avatar')}</Text>
             <View style={styles.avatarGrid}>
               {AVATAR_PRESETS.map((avatar) => (
                 <TouchableOpacity
@@ -105,18 +107,18 @@ export default function ProfileScreen() {
               ))}
             </View>
 
-            <Text style={styles.label}>Display Name</Text>
+            <Text style={styles.label}>{t('display_name')}</Text>
             <TextInput
               style={styles.input}
               value={displayName}
               onChangeText={setDisplayName}
-              placeholder="Enter your name"
+              placeholder={t('enter_name_placeholder')}
               placeholderTextColor="#9CA3AF"
             />
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
               <Save size={20} color="#FFFFFF" />
-              <Text style={styles.saveButtonText}>Save Profile</Text>
+              <Text style={styles.saveButtonText}>{t('save_profile')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -127,7 +129,7 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.title}>{t('profile')}</Text>
       </View>
 
       <ScrollView style={styles.content}>
@@ -136,29 +138,29 @@ export default function ProfileScreen() {
             <User size={48} color="#FFFFFF" />
           </View>
           <Text style={styles.profileTitle}>{profile?.displayName}</Text>
-          <Text style={styles.profileSubtitle}>Member since {new Date(profile?.joinedDate || '').toLocaleDateString()}</Text>
+          <Text style={styles.profileSubtitle}>{t('member_since')} {new Date(profile?.joinedDate || '').toLocaleDateString()}</Text>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{profile?.stats.pricesShared || 0}</Text>
-              <Text style={styles.statLabel}>Shared</Text>
+              <Text style={styles.statLabel}>{t('shared')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statValue}>R${(profile?.stats.totalSavings || 0).toFixed(2)}</Text>
-              <Text style={styles.statLabel}>Saved</Text>
+              <Text style={styles.statLabel}>{t('saved')}</Text>
             </View>
           </View>
 
           <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+            <Text style={styles.editButtonText}>{t('edit_profile')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.menuSection}>
           <TouchableOpacity style={styles.menuItem} onPress={handleClearData}>
             <Trash2 size={24} color="#EF4444" />
-            <Text style={[styles.menuText, { color: '#EF4444' }]}>Clear All Data</Text>
+            <Text style={[styles.menuText, { color: '#EF4444' }]}>{t('clear_all_data')}</Text>
           </TouchableOpacity>
         </View>
 

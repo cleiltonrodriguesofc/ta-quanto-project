@@ -17,11 +17,13 @@ import { PriceEntry } from '@/types/price';
 import { formatTimeAgo } from '@/utils/date';
 import { formatLocationDisplay } from '@/utils/location';
 import { useSupermarketSession } from '@/context/SupermarketContext';
+import { useTranslation } from 'react-i18next';
 
 export default function ProductDetailsScreen() {
     useKeepAwake();
     const { barcode } = useLocalSearchParams<{ barcode: string }>();
     const router = useRouter();
+    const { t } = useTranslation();
     const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
     const [prices, setPrices] = useState<PriceEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -118,11 +120,11 @@ export default function ProductDetailsScreen() {
                 ...currentSupermarketPrice,
                 timestamp: new Date().toISOString(),
             });
-            Alert.alert('Success', 'Price confirmed!');
+            Alert.alert(t('success'), t('price_confirmed'));
             loadPrices(); // Refresh list
         } catch (error) {
             console.error('Error confirming price:', error);
-            Alert.alert('Error', 'Failed to confirm price');
+            Alert.alert(t('error'), t('confirm_error'));
         }
     };
 
@@ -163,7 +165,7 @@ export default function ProductDetailsScreen() {
                         </Text>
                         {isBestPrice && (
                             <View style={styles.bestPriceBadge}>
-                                <Text style={styles.bestPriceText}>Best Price</Text>
+                                <Text style={styles.bestPriceText}>{t('best_price')}</Text>
                             </View>
                         )}
                     </View>
@@ -205,7 +207,7 @@ export default function ProductDetailsScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <ArrowLeft size={24} color="#FFFFFF" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Product Details</Text>
+                <Text style={styles.headerTitle}>{t('product_details')}</Text>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -230,7 +232,7 @@ export default function ProductDetailsScreen() {
                                 <View style={styles.placeholderImage} />
                             )}
                             <View style={styles.productInfo}>
-                                <Text style={styles.productName}>{productInfo?.name || 'Unknown Product'}</Text>
+                                <Text style={styles.productName}>{productInfo?.name || t('unknown_product')}</Text>
                                 {productInfo?.brand && (
                                     <Text style={styles.productBrand}>{productInfo.brand}</Text>
                                 )}
@@ -243,7 +245,7 @@ export default function ProductDetailsScreen() {
                                 <View style={styles.statItem}>
                                     <TrendingDown size={20} color="#10B981" />
                                     <View>
-                                        <Text style={styles.statLabel}>Best Price</Text>
+                                        <Text style={styles.statLabel}>{t('best_price')}</Text>
                                         <Text style={[styles.statValue, { color: '#10B981' }]}>
                                             R${stats.min.toFixed(2)}
                                         </Text>
@@ -254,7 +256,7 @@ export default function ProductDetailsScreen() {
                                 <View style={styles.statItem}>
                                     <TrendingUp size={20} color="#3A7DE8" />
                                     <View>
-                                        <Text style={styles.statLabel}>Average</Text>
+                                        <Text style={styles.statLabel}>{t('average')}</Text>
                                         <Text style={styles.statValue}>R${stats.avg.toFixed(2)}</Text>
                                     </View>
                                 </View>
@@ -267,35 +269,35 @@ export default function ProductDetailsScreen() {
                                 isUpdatedToday ? styles.cardUpdated : styles.cardVerify
                             ]}>
                                 <Text style={styles.verificationTitle}>
-                                    {isUpdatedToday ? 'Price updated today' : 'Verify Price'}
+                                    {isUpdatedToday ? t('price_updated_today') : t('verify_price')}
                                 </Text>
                                 <Text style={styles.verificationText}>
                                     {isUpdatedToday
-                                        ? 'This price has been confirmed today.'
-                                        : `Is the price still R$${currentSupermarketPrice.price.toFixed(2)}?`
+                                        ? t('price_confirmed_today')
+                                        : t('is_price_still', { price: currentSupermarketPrice.price.toFixed(2) })
                                     }
                                 </Text>
                                 {!isUpdatedToday && (
                                     <View style={styles.verificationButtons}>
                                         <TouchableOpacity style={[styles.verifyButton, styles.verifyButtonNo]} onPress={handleUpdatePrice}>
                                             <X size={20} color="#EF4444" />
-                                            <Text style={styles.verifyButtonText}>No</Text>
+                                            <Text style={styles.verifyButtonText}>{t('no')}</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.verifyButton, styles.verifyButtonYes]} onPress={handleConfirmPrice}>
                                             <Check size={20} color="#10B981" />
-                                            <Text style={styles.verifyButtonText}>Yes</Text>
+                                            <Text style={styles.verifyButtonText}>{t('yes')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}
                             </View>
                         )}
 
-                        <Text style={styles.sectionTitle}>Supermarket Prices</Text>
+                        <Text style={styles.sectionTitle}>{t('supermarket_prices')}</Text>
                     </>
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>No prices recorded yet.</Text>
+                        <Text style={styles.emptyText}>{t('no_prices_recorded')}</Text>
                     </View>
                 }
             />

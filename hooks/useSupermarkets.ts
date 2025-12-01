@@ -16,8 +16,8 @@ export const useSupermarkets = () => {
     const loadSupermarkets = async () => {
         setIsLoading(true);
         try {
-            // Load the static list
-            const allSupermarkets = SupermarketService.getAll();
+            // Load from API
+            const allSupermarkets = await SupermarketService.getAll();
             setSupermarkets(allSupermarkets);
 
             // Try to get location for nearest suggestion
@@ -28,7 +28,8 @@ export const useSupermarkets = () => {
                 const location = await Location.getCurrentPositionAsync({});
                 const nearest = SupermarketService.getNearest(
                     location.coords.latitude,
-                    location.coords.longitude
+                    location.coords.longitude,
+                    allSupermarkets
                 );
                 setNearestSupermarket(nearest);
             }
@@ -39,11 +40,23 @@ export const useSupermarkets = () => {
         }
     };
 
+    const addSupermarket = async (name: string) => {
+        try {
+            const newSupermarket = await SupermarketService.add(name);
+            setSupermarkets(prev => [...prev, newSupermarket]);
+            return newSupermarket;
+        } catch (error) {
+            console.error('Error adding supermarket:', error);
+            throw error;
+        }
+    };
+
     return {
         supermarkets,
         nearestSupermarket,
         isLoading,
         locationPermission,
         refresh: loadSupermarkets,
+        addSupermarket,
     };
 };
