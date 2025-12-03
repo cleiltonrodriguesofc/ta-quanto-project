@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
-import { User, Trash2, Save } from 'lucide-react-native';
+import { User, Trash2, Save, LogOut, LogIn } from 'lucide-react-native';
 import { UserProfile, AVATAR_PRESETS } from '@/types/user';
 import { getUserProfile, saveUserProfile, clearAllData } from '@/utils/storage';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { session, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -46,7 +48,7 @@ export default function ProfileScreen() {
     await saveUserProfile(newProfile);
     setProfile(newProfile);
     setIsEditing(false);
-    Alert.alert(t('success'), t('success')); // Or a specific message
+    Alert.alert(t('success'), t('success'));
   };
 
   const handleClearData = () => {
@@ -68,6 +70,15 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      router.replace('/auth/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const getAvatarColor = (avatarId: string) => {
@@ -133,6 +144,24 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView style={styles.content}>
+        {/* Auth Status Section */}
+        <View style={styles.authSection}>
+          {session ? (
+            <View style={styles.authCard}>
+              <Text style={styles.authText}>Logged in as: {session.user.email}</Text>
+              <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+                <LogOut size={20} color="#EF4444" />
+                <Text style={styles.signOutText}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.signInButton} onPress={() => router.push('/auth/login')}>
+              <LogIn size={20} color="#FFFFFF" />
+              <Text style={styles.signInText}>Sign In / Sign Up</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={styles.profileCard}>
           <View style={[styles.avatarContainer, { backgroundColor: getAvatarColor(profile?.avatarId || 'avatar1') }]}>
             <User size={48} color="#FFFFFF" />
@@ -348,5 +377,57 @@ const styles = StyleSheet.create({
   versionText: {
     fontSize: 14,
     color: '#9CA3AF',
+  },
+  authSection: {
+    marginBottom: 20,
+  },
+  authCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  authText: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+    marginRight: 10,
+  },
+  signInButton: {
+    backgroundColor: '#3A7DE8',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  signInText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    padding: 8,
+  },
+  signOutText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
   },
 });
