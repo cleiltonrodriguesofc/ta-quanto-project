@@ -1,5 +1,5 @@
 import { Supermarket } from '@/types/supermarket';
-import { API_URL } from '@/utils/api';
+import { supabase } from '@/utils/supabase';
 
 // Haversine formula to calculate distance between two points
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -22,21 +22,17 @@ const deg2rad = (deg: number): number => {
 export const SupermarketService = {
     getAll: async (): Promise<Supermarket[]> => {
         try {
-            const response = await fetch(`${API_URL}/supermarkets`, {
-                headers: { 'Bypass-Tunnel-Reminder': 'true' }
-            });
+            const { data, error } = await supabase
+                .from('supermarkets')
+                .select('*')
+                .order('name', { ascending: true });
 
-            const text = await response.text();
-            if (!response.ok) {
-                throw new Error(`Failed to fetch supermarkets: ${response.status} ${text}`);
-            }
-
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.error('Invalid JSON response from server (supermarkets):', text.substring(0, 100));
+            if (error) {
+                console.error('Error fetching supermarkets from Supabase:', error);
                 return [];
             }
+
+            return data || [];
         } catch (error) {
             console.error('Error fetching supermarkets:', error);
             return [];
@@ -44,29 +40,24 @@ export const SupermarketService = {
     },
 
     add: async (name: string): Promise<Supermarket> => {
-        const response = await fetch(`${API_URL}/supermarkets`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Bypass-Tunnel-Reminder': 'true'
-            },
-            body: JSON.stringify({ name }),
-        });
-
-        const text = await response.text();
-        if (!response.ok) {
-            try {
-                const errorData = JSON.parse(text);
-                throw new Error(errorData.error || 'Failed to add supermarket');
-            } catch (e) {
-                throw new Error(`Failed to add supermarket: ${response.status} ${text}`);
-            }
-        }
-
         try {
-            return JSON.parse(text);
-        } catch (e) {
-            throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
+            // Check if exists first (optional, but good for UX if unique constraint exists)
+            // Supabase will throw error on unique constraint violation if configured
+
+            const { data, error } = await supabase
+                .from('supermarkets')
+                .insert([{ name, type: 'Supermarket' }]) // Default type
+                .select()
+                .single();
+
+            if (error) {
+                throw new Error(error.message || 'Failed to add supermarket');
+            }
+
+            return data;
+        } catch (error: any) {
+            console.error('Error adding supermarket:', error);
+            throw error;
         }
     },
 

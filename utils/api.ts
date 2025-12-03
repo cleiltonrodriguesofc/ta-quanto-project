@@ -7,23 +7,12 @@ import { UserProfile } from '@/types/user';
 // To find your local IP:
 // - Windows: Open Command Prompt and run 'ipconfig' -> Look for IPv4 Address
 // - Mac/Linux: Open Terminal and run 'ifconfig' or 'hostname -I'
-export const API_URL = 'http://192.168.18.14:3001';
-
+import { supabase } from './supabase';
 
 export const checkApiConnection = async (): Promise<boolean> => {
     try {
-        const response = await fetch(`${API_URL}/health`, {
-            headers: { 'Bypass-Tunnel-Reminder': 'true' }
-        });
-
-        const text = await response.text();
-        try {
-            const data = JSON.parse(text);
-            return data.status === 'ok';
-        } catch (e) {
-            console.log('API Connection failed: Response was not JSON', text.substring(0, 100));
-            return false;
-        }
+        const { error } = await supabase.from('supermarkets').select('count', { count: 'exact', head: true });
+        return !error;
     } catch (error) {
         console.log('API Connection failed:', error);
         return false;
@@ -32,87 +21,66 @@ export const checkApiConnection = async (): Promise<boolean> => {
 
 export const api = {
     getPrices: async (barcode?: string): Promise<PriceEntry[]> => {
-        const url = barcode ? `${API_URL}/prices?barcode=${barcode}` : `${API_URL}/prices`;
-        const response = await fetch(url, {
-            headers: { 'Bypass-Tunnel-Reminder': 'true' }
-        });
+        let query = supabase
+            .from('prices')
+            .select('*')
+            .order('timestamp', { ascending: false });
 
-        const text = await response.text();
-        if (!response.ok) {
-            throw new Error(`Failed to fetch prices: ${response.status} ${text}`);
+        if (barcode) {
+            query = query.eq('barcode', barcode);
         }
 
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
+        const { data, error } = await query;
+
+        if (error) {
+            throw new Error(`Failed to fetch prices: ${error.message}`);
         }
+
+        return data || [];
     },
 
     addPrice: async (price: PriceEntry): Promise<void> => {
-        const response = await fetch(`${API_URL}/prices`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Bypass-Tunnel-Reminder': 'true'
-            },
-            body: JSON.stringify(price),
-        });
+        const { error } = await supabase
+            .from('prices')
+            .insert([price]);
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Failed to add price: ${response.status} ${text}`);
+        if (error) {
+            throw new Error(`Failed to add price: ${error.message}`);
         }
     },
 
     batchUploadPrices: async (prices: PriceEntry[]): Promise<void> => {
-        const response = await fetch(`${API_URL}/prices/batch`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Bypass-Tunnel-Reminder': 'true'
-            },
-            body: JSON.stringify(prices),
-        });
+        const { error } = await supabase
+            .from('prices')
+            .insert(prices);
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Failed to batch upload prices: ${response.status} ${text}`);
+        if (error) {
+            throw new Error(`Failed to batch upload prices: ${error.message}`);
         }
     },
 
     getUser: async (id: string): Promise<UserProfile | null> => {
-        const response = await fetch(`${API_URL}/users/${id}`, {
-            headers: { 'Bypass-Tunnel-Reminder': 'true' }
-        });
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', id)
+            .single();
 
-        if (response.status === 404) return null;
-
-        const text = await response.text();
-        if (!response.ok) {
-            throw new Error(`Failed to fetch user: ${response.status} ${text}`);
+        if (error) {
+            if (error.code === 'PGRST116') return null; // Not found
+            throw new Error(`Failed to fetch user: ${error.message}`);
         }
 
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
-        }
+        return data;
     },
 
     saveUser: async (user: UserProfile): Promise<void> => {
-        const response = await fetch(`${API_URL}/users`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Bypass-Tunnel-Reminder': 'true'
-            },
-            body: JSON.stringify(user),
-        });
+        const { error } = await supabase
+            .from('users')
+            .upsert([user]);
 
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`Failed to save user: ${response.status} ${text}`);
+        if (error) {
+            throw new Error(`Failed to save user: ${error.message}`);
         }
     },
 };
@@ -139,18 +107,20 @@ export const fetchProductFromUPCitemdb = async (barcode: string) => {
 
 export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
     try {
-        // 1. Check Local Cache
+        // 1. Check Supabase Cache
         try {
-            const localResponse = await fetch(`${API_URL}/products/${barcode}`, {
-                headers: { 'Bypass-Tunnel-Reminder': 'true' }
-            });
-            if (localResponse.ok) {
-                const localProduct = await localResponse.json();
-                console.log('[API] Found product in local cache');
-                return localProduct;
+            const { data, error } = await supabase
+                .from('products')
+                .select('*')
+                .eq('barcode', barcode)
+                .single();
+
+            if (data) {
+                console.log('[API] Found product in Supabase cache');
+                return data;
             }
         } catch (e) {
-            console.log('[API] Local cache check failed, trying external');
+            console.log('[API] Supabase cache check failed, trying external');
         }
 
         let product = null;
@@ -179,19 +149,15 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
             if (product) console.log('[API] Found in UPCitemdb');
         }
 
-        // 4. Save to Local Cache (Fire and Forget)
+        // 4. Save to Supabase Cache (Fire and Forget)
         if (product) {
-            fetch(`${API_URL}/products`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Bypass-Tunnel-Reminder': 'true'
-                },
-                body: JSON.stringify({
-                    barcode,
-                    ...product
-                })
-            }).catch(err => console.error('[API] Failed to cache product:', err));
+            supabase.from('products').upsert([{
+                barcode,
+                ...product,
+                createdAt: new Date().toISOString()
+            }]).then(({ error }) => {
+                if (error) console.error('[API] Failed to cache product in Supabase:', error);
+            });
 
             return product;
         }
