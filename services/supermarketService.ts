@@ -13,54 +13,6 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c; // Distance in km
     return d;
-};
-
-const deg2rad = (deg: number): number => {
-    return deg * (Math.PI / 180);
-};
-
-export const SupermarketService = {
-    getAll: async (): Promise<Supermarket[]> => {
-        try {
-            const { data, error } = await supabase
-                .from('supermarkets')
-                .select('*')
-                .order('name', { ascending: true });
-
-            if (error) {
-                console.error('Error fetching supermarkets from Supabase:', error);
-                return [];
-            }
-
-            return data || [];
-        } catch (error) {
-            console.error('Error fetching supermarkets:', error);
-            return [];
-        }
-    },
-
-    add: async (name: string): Promise<Supermarket> => {
-        try {
-            // Check if exists first (optional, but good for UX if unique constraint exists)
-            // Supabase will throw error on unique constraint violation if configured
-
-            const { data, error } = await supabase
-                .from('supermarkets')
-                .insert([{ name, type: 'Supermarket' }]) // Default type
-                .select()
-                .single();
-
-            if (error) {
-                throw new Error(error.message || 'Failed to add supermarket');
-            }
-
-            return data;
-        } catch (error: any) {
-            console.error('Error adding supermarket:', error);
-            throw error;
-        }
-    },
-
     getNearest: (latitude: number, longitude: number, supermarkets: Supermarket[]): Supermarket | null => {
         let nearest: Supermarket | null = null;
         let minDistance = Infinity;
