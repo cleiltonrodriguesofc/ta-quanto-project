@@ -89,6 +89,9 @@ export default function LoginScreen() {
 
     return (
         <View style={styles.container}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
             <Text style={styles.title}>Welcome to TaQuanto?</Text>
 
             <View style={styles.inputContainer}>
@@ -126,7 +129,7 @@ export default function LoginScreen() {
                 <Text style={styles.secondaryButtonText}>Sign Up</Text>
             </TouchableOpacity>
 
-            <View style={styles.divider}>
+            {/* <View style={styles.divider}>
                 <View style={styles.dividerLine} />
                 <Text style={styles.dividerText}>OR</Text>
                 <View style={styles.dividerLine} />
@@ -135,7 +138,7 @@ export default function LoginScreen() {
             <TouchableOpacity style={styles.googleButton} onPress={signInWithGoogle} disabled={loading}>
                 <Ionicons name="logo-google" size={20} color="#DB4437" style={styles.googleIcon} />
                 <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
         </View>
     );
 }
@@ -146,6 +149,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         padding: 20,
         backgroundColor: '#fff',
+    },
+    backButton: {
+        position: 'absolute',
+        top: 50,
+        left: 20,
+        zIndex: 10,
     },
     title: {
         fontSize: 28,
