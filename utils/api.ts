@@ -181,6 +181,13 @@ export const api = {
 
     getUser: async (id: string): Promise<UserProfile | null> => {
         if (USE_SUPABASE) {
+            // Validate UUID before query
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(id)) {
+                console.warn(`[API] Skipping getUser for legacy ID: ${id}`);
+                return null;
+            }
+
             const { data, error } = await supabase
                 .from('users')
                 .select('*')
