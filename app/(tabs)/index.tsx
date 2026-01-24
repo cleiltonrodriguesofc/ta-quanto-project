@@ -28,7 +28,9 @@ export default function HomeScreen() {
 
   const loadStats = async () => {
     try {
+      console.log('[Home] Loading stats...');
       const prices = await getStoredPrices();
+      console.log(`[Home] Stats loaded: ${prices.length} prices`);
       setPriceCount(prices.length);
       const pricesWithLocation = prices.filter(price => price.location);
       setLocationCount(pricesWithLocation.length);

@@ -23,6 +23,12 @@ export default function ScanScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
+  console.log(`[Scan] Permission status: ${permission?.status}`);
+
+  useEffect(() => {
+    console.log('[Scan] Camera mounted');
+  }, []);
+
   const [scanned, setScanned] = useState(false);
   const [flash, setFlash] = useState(false);
 

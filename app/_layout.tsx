@@ -4,20 +4,19 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { SupermarketProvider } from '@/context/SupermarketContext';
-import { AuthProvider } from '@/context/AuthContext';
 
 export default function RootLayout() {
   useFrameworkReady();
+  useEffect(() => {
+    console.log('[DEBUG] App Layout Mounted');
+  }, []);
+
 
   return (
     <SupermarketProvider>
-      <AuthProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="+not-found" />
+      </Stack>
       <StatusBar style="auto" />
     </SupermarketProvider>
   );

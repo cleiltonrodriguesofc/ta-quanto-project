@@ -11,6 +11,7 @@ import { supabase } from '@/utils/supabase';
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LandingScreen() {
+    console.log('[DEBUG] Landing Screen Rendered');
     const { session, isLoading } = useAuth();
     const router = useRouter();
     const [authLoading, setAuthLoading] = useState(false);
@@ -27,48 +28,6 @@ export default function LandingScreen() {
         return <Redirect href="/(tabs)" />;
     }
 
-    const signInWithGoogle = async () => {
-        setAuthLoading(true);
-        try {
-            const redirectUrl = makeRedirectUri({
-                scheme: 'taquanto',
-                path: 'auth/callback',
-            });
-
-            const { data, error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: redirectUrl,
-                    skipBrowserRedirect: true,
-                },
-            });
-
-            if (error) throw error;
-
-            if (data?.url) {
-                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-
-                if (result.type === 'success') {
-                    const { url } = result;
-                    const params = QueryParams.getQueryParams(url);
-
-                    if (params.access_token && params.refresh_token) {
-                        const { error: sessionError } = await supabase.auth.setSession({
-                            access_token: params.access_token,
-                            refresh_token: params.refresh_token,
-                        });
-                        if (sessionError) throw sessionError;
-                        // The Redirect component above will handle navigation once session is set
-                    }
-                }
-            }
-        } catch (error: any) {
-            Alert.alert('Erro no Login Google', error.message);
-        } finally {
-            setAuthLoading(false);
-        }
-    };
-
     return (
         <View style={styles.container}>
             <View style={styles.heroSection}>
@@ -82,21 +41,6 @@ export default function LandingScreen() {
             </View>
 
             <View style={styles.actionSection}>
-                {/* <TouchableOpacity
-                    style={styles.googleButton}
-                    onPress={signInWithGoogle}
-                    disabled={authLoading}
-                >
-                    {authLoading ? (
-                        <ActivityIndicator color="#333" />
-                    ) : (
-                        <>
-                            <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.buttonIcon} />
-                            <Text style={styles.googleButtonText}>Continuar com Google</Text>
-                        </>
-                    )}
-                </TouchableOpacity> */}
-
                 <TouchableOpacity
                     style={styles.emailButton}
                     onPress={() => router.push('/auth/login')}
@@ -108,7 +52,7 @@ export default function LandingScreen() {
 
                 <TouchableOpacity
                     style={styles.createAccountButton}
-                    onPress={() => router.push('/auth/login')}
+                    onPress={() => router.push('/auth/login')} // Register often goes to login page first or same flow
                     disabled={authLoading}
                 >
                     <Text style={styles.createAccountText}>Criar uma conta</Text>

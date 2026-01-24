@@ -2,7 +2,7 @@ import { PriceEntry } from '@/types/price';
 import { UserProfile } from '@/types/user';
 import { supabase } from './supabase';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.18.14:3001';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.18.69:3002';
 const USE_SUPABASE = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
 
 console.log(`[API] Initializing. Mode: ${USE_SUPABASE ? 'SUPABASE' : 'LOCAL'}, URL: ${API_URL}`);

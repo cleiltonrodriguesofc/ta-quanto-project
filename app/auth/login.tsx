@@ -1,85 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { supabase } from '@/utils/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import * as WebBrowser from 'expo-web-browser';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
-import { makeRedirectUri } from 'expo-auth-session';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
     const router = useRouter();
+    const { signInWithGoogle } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const signInWithEmail = async () => {
-        setLoading(true);
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (error) {
-            Alert.alert('Error', error.message);
-        } else {
-            router.replace('/(tabs)');
-        }
-        setLoading(false);
-    };
-
-    const signUpWithEmail = async () => {
-        setLoading(true);
-        const { error } = await supabase.auth.signUp({
-            email,
-            password,
-        });
-
-        if (error) {
-            Alert.alert('Error', error.message);
-        } else {
-            Alert.alert('Success', 'Please check your inbox for email verification!');
-        }
-        setLoading(false);
-    };
-
-    const signInWithGoogle = async () => {
-        setLoading(true);
+    const handleGoogleSignIn = async () => {
         try {
-            const redirectUrl = makeRedirectUri({
-                scheme: 'taquanto',
-                path: 'auth/callback',
-            });
-
-            const { data, error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: redirectUrl,
-                    skipBrowserRedirect: true,
-                },
-            });
-
-            if (error) throw error;
-
-            if (data?.url) {
-                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
-
-                if (result.type === 'success') {
-                    const { url } = result;
-                    const params = QueryParams.getQueryParams(url);
-
-                    if (params.access_token && params.refresh_token) {
-                        const { error: sessionError } = await supabase.auth.setSession({
-                            access_token: params.access_token,
-                            refresh_token: params.refresh_token,
-                        });
-                        if (sessionError) throw sessionError;
-                        router.replace('/(tabs)');
-                    }
-                }
-            }
+            setLoading(true);
+            await signInWithGoogle();
+            // AuthContext handles redirect or state change
         } catch (error: any) {
             Alert.alert('Google Sign-In Error', error.message);
         } finally {
@@ -87,58 +23,71 @@ export default function LoginScreen() {
         }
     };
 
+    const handleEmailSignIn = async () => {
+        // Placeholder for email sign in
+        Alert.alert('Email Sign-In', 'Not implemented yet');
+    };
+
     return (
         <View style={styles.container}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                 <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
-            <Text style={styles.title}>Welcome to TaQuanto?</Text>
 
-            <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                />
+            <View style={styles.header}>
+                <Text style={styles.title}>Welcome Back!</Text>
+                <Text style={styles.subtitle}>Sign in to continue</Text>
             </View>
 
-            <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.icon} />
-                <TextInput
-                    style={styles.input}
-                    placeholder="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                />
+            <View style={styles.form}>
+                <View style={styles.inputContainer}>
+                    <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Email"
+                        value={email}
+                        onChangeText={setEmail}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                    />
+                </View>
+
+                <View style={styles.inputContainer}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Password"
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                    />
+                </View>
+
+                <TouchableOpacity style={styles.loginButton} onPress={handleEmailSignIn}>
+                    <Text style={styles.loginButtonText}>Log In</Text>
+                </TouchableOpacity>
+
+                <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                </View>
+
+                <TouchableOpacity
+                    style={styles.googleButton}
+                    onPress={handleGoogleSignIn}
+                    disabled={loading}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#333" />
+                    ) : (
+                        <>
+                            <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.buttonIcon} />
+                            <Text style={styles.googleButtonText}>Sign in with Google</Text>
+                        </>
+                    )}
+                </TouchableOpacity>
             </View>
-
-            <TouchableOpacity style={styles.button} onPress={signInWithEmail} disabled={loading}>
-                {loading ? (
-                    <ActivityIndicator color="#fff" />
-                ) : (
-                    <Text style={styles.buttonText}>Sign In</Text>
-                )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={signUpWithEmail} disabled={loading}>
-                <Text style={styles.secondaryButtonText}>Sign Up</Text>
-            </TouchableOpacity>
-
-            {/* <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity style={styles.googleButton} onPress={signInWithGoogle} disabled={loading}>
-                <Ionicons name="logo-google" size={20} color="#DB4437" style={styles.googleIcon} />
-                <Text style={styles.googleButtonText}>Continue with Google</Text>
-            </TouchableOpacity> */}
         </View>
     );
 }
@@ -146,67 +95,64 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        padding: 20,
         backgroundColor: '#fff',
+        padding: 20,
     },
     backButton: {
-        position: 'absolute',
-        top: 50,
-        left: 20,
-        zIndex: 10,
+        marginTop: 40,
+        marginBottom: 20,
+    },
+    header: {
+        marginBottom: 40,
     },
     title: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: 'bold',
-        marginBottom: 40,
-        textAlign: 'center',
         color: '#333',
+        marginBottom: 10,
+    },
+    subtitle: {
+        fontSize: 16,
+        color: '#666',
+    },
+    form: {
+        gap: 20,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#ddd',
-        borderRadius: 8,
-        marginBottom: 15,
-        paddingHorizontal: 10,
-        height: 50,
+        borderRadius: 12,
+        paddingHorizontal: 15,
+        height: 56,
+        backgroundColor: '#f9f9f9',
     },
-    icon: {
+    inputIcon: {
         marginRight: 10,
     },
     input: {
         flex: 1,
         height: '100%',
+        fontSize: 16,
     },
-    button: {
-        backgroundColor: '#007AFF',
-        padding: 15,
-        borderRadius: 8,
+    loginButton: {
+        backgroundColor: '#3A7DE8',
+        borderRadius: 12,
+        height: 56,
+        justifyContent: 'center',
         alignItems: 'center',
         marginTop: 10,
     },
-    buttonText: {
+    loginButtonText: {
         color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    secondaryButton: {
-        backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: '#007AFF',
-        marginTop: 15,
-    },
-    secondaryButtonText: {
-        color: '#007AFF',
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: 'bold',
     },
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 30,
+        marginVertical: 20,
     },
     dividerLine: {
         flex: 1,
@@ -221,18 +167,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#ddd',
-        padding: 15,
-        borderRadius: 8,
-    },
-    googleIcon: {
-        marginRight: 10,
+        borderRadius: 12,
+        height: 56,
+        backgroundColor: '#fff',
     },
     googleButtonText: {
-        color: '#333',
         fontSize: 16,
         fontWeight: '600',
+        color: '#333',
+    },
+    buttonIcon: {
+        marginRight: 10,
     },
 });
