@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/utils/supabase';
 import * as WebBrowser from 'expo-web-browser';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
+import * as Linking from 'expo-linking';
 import { makeRedirectUri } from 'expo-auth-session';
 
 type AuthContextType = {
@@ -73,12 +73,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                 if (result.type === 'success') {
                     const { url } = result;
-                    const params = QueryParams.getQueryParams(url);
+                    const { queryParams } = Linking.parse(url);
 
-                    if (params.access_token && params.refresh_token) {
+                    if (queryParams?.access_token && queryParams?.refresh_token) {
                         const { error: sessionError } = await supabase.auth.setSession({
-                            access_token: params.access_token,
-                            refresh_token: params.refresh_token,
+                            access_token: queryParams.access_token as string,
+                            refresh_token: queryParams.refresh_token as string,
                         });
                         if (sessionError) throw sessionError;
                     }

@@ -7,6 +7,77 @@ const USE_SUPABASE = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
 
 console.log(`[API] Initializing. Mode: ${USE_SUPABASE ? 'SUPABASE' : 'LOCAL'}, URL: ${API_URL}`);
 
+// Simple hash function for deterministic UUIDs (DJB2-ish or simple math for demo, usually use proper SHA-1)
+// But for this environment, a simple string-to-uuid mapping is needed to keep it consistent.
+// We'll use a pseudo-random generator seeded by the string.
+const stringToUuid = (str: string): string => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+    }
+    // Mix it up to look like UUID segments
+    const hex = (Math.abs(hash)).toString(16).padStart(8, '0');
+    // We need 32 hex chars. Let's repeat/mix.
+    // This is NOT secure, just determinstic for migration.
+    const fullHex = (hex + hex + hex + hex).substring(0, 32);
+
+    return `${fullHex.substring(0, 8)}-${fullHex.substring(8, 12)}-4${fullHex.substring(13, 16)}-8${fullHex.substring(17, 20)}-${fullHex.substring(20, 32)}`;
+};
+
+// Helper to transform PriceEntry for Supabase
+// - Removes 'quantity' (not in schema)
+// - Flattens 'location' objects into separate columns
+// - CURRENTLY EXCLUDES address/lat/long because Supabase schema is missing them
+// - Generates deterministic UUID for legacy IDs
+const formatPriceForSupabase = (price: PriceEntry) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { quantity, location, id, ...rest } = price;
+
+    // Ensure ID is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let finalId = id;
+
+    if (!uuidRegex.test(id)) {
+        // Generate deterministic UUID for legacy IDs
+        finalId = stringToUuid(id);
+        // console.log(`[API] Converted legacy ID ${id} -> ${finalId}`);
+    }
+
+    return {
+        ...rest,
+        id: finalId,
+        // latitude: location?.latitude,
+        // longitude: location?.longitude,
+        // address: location?.address,
+    };
+};
+
+// Helper to transform UserProfile for Supabase
+// - Maps 'avatarId' to 'avatar_url'
+// - Maps 'displayName' to 'full_name'
+// - Maps 'joinedDate' to 'created_at'
+// - Flattens 'stats'
+// - Validates ID is UUID (Supabase requirement)
+const formatUserForSupabase = (user: UserProfile) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { avatarId, displayName, joinedDate, stats, ...rest } = user;
+
+    // Check if ID is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(user.id)) {
+        console.warn(`[API] Skipping user sync for legacy ID: ${user.id}`);
+        return null; // Return null for invalid IDs
+    }
+
+    return {
+        ...rest,
+        avatar_url: avatarId, // Map avatarId -> avatar_url
+        full_name: displayName, // Map displayName -> full_name
+        created_at: joinedDate, // Map joinedDate -> created_at
+    };
+};
+
 export const checkApiConnection = async (): Promise<boolean> => {
     if (USE_SUPABASE) {
         try {
@@ -67,7 +138,7 @@ export const api = {
 
     addPrice: async (price: PriceEntry): Promise<void> => {
         if (USE_SUPABASE) {
-            const { error } = await supabase.from('prices').insert([price]);
+            const { error } = await supabase.from('prices').upsert([formatPriceForSupabase(price)]);
             if (error) throw new Error(`Supabase error: ${error.message}`);
         } else {
             const response = await fetch(`${API_URL}/prices`, {
@@ -88,7 +159,8 @@ export const api = {
 
     batchUploadPrices: async (prices: PriceEntry[]): Promise<void> => {
         if (USE_SUPABASE) {
-            const { error } = await supabase.from('prices').insert(prices);
+            const formattedPrices = prices.map(formatPriceForSupabase);
+            const { error } = await supabase.from('prices').upsert(formattedPrices);
             if (error) throw new Error(`Supabase error: ${error.message}`);
         } else {
             const response = await fetch(`${API_URL}/prices/batch`, {
@@ -136,7 +208,10 @@ export const api = {
 
     saveUser: async (user: UserProfile): Promise<void> => {
         if (USE_SUPABASE) {
-            const { error } = await supabase.from('users').upsert([user]);
+            const formattedUser = formatUserForSupabase(user);
+            if (!formattedUser) return; // Skip invalid users
+
+            const { error } = await supabase.from('users').upsert([formattedUser]);
             if (error) throw new Error(`Supabase error: ${error.message}`);
         } else {
             const response = await fetch(`${API_URL}/users`, {
