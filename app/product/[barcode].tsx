@@ -43,9 +43,11 @@ export default function ProductDetailsScreen() {
         setLoading(true);
         try {
             const fetchedPrices = await getPricesByBarcode(barcode);
+            console.log(`[Product] Fetching prices for barcode: ${barcode}`);
             setPrices(fetchedPrices);
 
             if (fetchedPrices.length > 0) {
+                console.log(`[Product] Prices found: ${fetchedPrices.length}`);
                 const newest = fetchedPrices[0];
                 setProductInfo({
                     name: newest.productName,

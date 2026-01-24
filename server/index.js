@@ -238,4 +238,5 @@ app.post('/supermarkets', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+    console.log('[DEBUG] Server started, Database connected');
 });

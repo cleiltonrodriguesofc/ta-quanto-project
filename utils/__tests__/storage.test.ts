@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredPrices, savePriceEntry, clearAllPrices } from '../storage';
 import { PriceEntry } from '@/types/price';
+import { checkApiConnection } from '../api';
+
+// Mock API
+jest.mock('../api', () => ({
+  checkApiConnection: jest.fn(),
+  api: {
+    batchUploadPrices: jest.fn(),
+    addPrice: jest.fn(),
+  },
+}));
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage');
@@ -9,14 +19,15 @@ const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;
 describe('Storage Utils', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (checkApiConnection as jest.Mock).mockResolvedValue(false); // Default to offline for storage tests
   });
 
   describe('getStoredPrices', () => {
     it('should return empty array when no data exists', async () => {
       mockAsyncStorage.getItem.mockResolvedValue(null);
-      
+
       const result = await getStoredPrices();
-      
+
       expect(result).toEqual([]);
       expect(mockAsyncStorage.getItem).toHaveBeenCalledWith('taquanto_prices');
     });
@@ -32,17 +43,17 @@ describe('Storage Utils', () => {
         },
       ];
       mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(mockPrices));
-      
+
       const result = await getStoredPrices();
-      
+
       expect(result).toEqual(mockPrices);
     });
 
     it('should return empty array on error', async () => {
       mockAsyncStorage.getItem.mockRejectedValue(new Error('Storage error'));
-      
+
       const result = await getStoredPrices();
-      
+
       expect(result).toEqual([]);
     });
   });
@@ -92,7 +103,7 @@ describe('Storage Utils', () => {
 
       const savedData = mockAsyncStorage.setItem.mock.calls[0][1];
       const parsedData = JSON.parse(savedData);
-      
+
       expect(parsedData).toHaveLength(2);
       expect(parsedData[0].productName).toBe('Bread'); // New price should be first
       expect(parsedData[1].productName).toBe('Milk');

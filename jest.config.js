@@ -1,8 +1,10 @@
+
 module.exports = {
-  preset: 'jest-expo/android',
+  preset: 'jest-expo',
+  rootDir: '.',
   setupFilesAfterEnv: ['<rootDir>/jest-setup.js'],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|expo|@expo|@unimodules|unimodules|sentry-expo|native-base|react-clone-referenced-element|@react-native-community|expo-router|@expo/vector-icons|lucide-react-native|expo-modules-core|expo-font|expo-asset|expo-constants|expo-image-picker|expo-image-manipulator|expo-camera|@react-navigation|react-navigation|react-native-url-polyfill|expo-localization)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg|expo-router|expo-modules-core|lucide-react-native)',
   ],
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',
@@ -15,7 +17,5 @@ module.exports = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
-  },
+
 };

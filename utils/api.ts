@@ -2,12 +2,7 @@ import { PriceEntry } from '@/types/price';
 import { UserProfile } from '@/types/user';
 import { supabase } from './supabase';
 
-<<<<<<< Updated upstream
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.18.14:3001';
-=======
-
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.18.69:3002';
->>>>>>> Stashed changes
 const USE_SUPABASE = process.env.EXPO_PUBLIC_USE_SUPABASE === 'true';
 
 console.log(`[API] Initializing. Mode: ${USE_SUPABASE ? 'SUPABASE' : 'LOCAL'}, URL: ${API_URL}`);
@@ -34,6 +29,7 @@ const stringToUuid = (str: string): string => {
 // - Removes 'quantity' (not in schema)
 // - Flattens 'location' objects into separate columns
 // - CURRENTLY EXCLUDES address/lat/long because Supabase schema is missing them
+// - Generates deterministic UUID for legacy IDs
 const formatPriceForSupabase = (price: PriceEntry) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { quantity, location, id, ...rest } = price;
@@ -45,7 +41,7 @@ const formatPriceForSupabase = (price: PriceEntry) => {
     if (!uuidRegex.test(id)) {
         // Generate deterministic UUID for legacy IDs
         finalId = stringToUuid(id);
-        console.log(`[API] Converted legacy ID ${id} -> ${finalId}`);
+        // console.log(`[API] Converted legacy ID ${id} -> ${finalId}`);
     }
 
     return {
@@ -57,11 +53,6 @@ const formatPriceForSupabase = (price: PriceEntry) => {
     };
 };
 
-// Helper to transform UserProfile for Supabase
-// - Maps 'avatarId' to 'avatar_url'
-// - Maps 'displayName' to 'full_name'
-// - Maps 'joinedDate' to 'created_at'
-// - Flattens 'stats'
 // Helper to transform UserProfile for Supabase
 // - Maps 'avatarId' to 'avatar_url'
 // - Maps 'displayName' to 'full_name'
@@ -218,7 +209,7 @@ export const api = {
     saveUser: async (user: UserProfile): Promise<void> => {
         if (USE_SUPABASE) {
             const formattedUser = formatUserForSupabase(user);
-            if (!formattedUser) return; // Skip invalid/legacy users
+            if (!formattedUser) return; // Skip invalid users
 
             const { error } = await supabase.from('users').upsert([formattedUser]);
             if (error) throw new Error(`Supabase error: ${error.message}`);

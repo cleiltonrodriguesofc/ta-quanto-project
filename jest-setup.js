@@ -5,25 +5,6 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
-// Mock Supabase
-jest.mock('@supabase/supabase-js', () => ({
-  createClient: jest.fn(() => ({
-    auth: {
-      getSession: jest.fn(() => Promise.resolve({ data: { session: null }, error: null })),
-      onAuthStateChange: jest.fn(() => ({ data: { subscription: { unsubscribe: jest.fn() } } })),
-    },
-    from: jest.fn(() => ({
-      select: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-    })),
-  })),
-}));
-
 // Mock Expo modules
 jest.mock('expo-router', () => ({
   useRouter: () => ({
@@ -71,4 +52,51 @@ jest.mock('expo-location', () => ({
 }));
 
 // Mock react-native modules
-// Relying on jest-expo preset for default RN mocks
+// jest.mock('react-native', () => {
+//   const RN = jest.requireActual('react-native');
+//   return {
+//     ...RN,
+//     Alert: {
+//       alert: jest.fn(),
+//     },
+//   };
+// });
+
+// Mock react-i18next
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key) => key,
+    i18n: {
+      changeLanguage: () => new Promise(() => { }),
+    },
+  }),
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => { },
+  },
+}));
+
+// Mock TurboModuleRegistry to handle DevMenu
+jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => {
+  const actual = jest.requireActual('react-native/Libraries/TurboModule/TurboModuleRegistry');
+  return {
+    ...actual,
+    getEnforcing: (name) => {
+      // Return a generic mock for any module to prevent crashes
+      const genericMock = {
+        show: jest.fn(),
+        reload: jest.fn(),
+        addListener: jest.fn(),
+        removeListeners: jest.fn(),
+        getConstants: () => ({}),
+      };
+
+      try {
+        return actual.getEnforcing(name);
+      } catch (e) {
+        // Fallback if not found
+        return genericMock;
+      }
+    },
+  };
+});
