@@ -154,7 +154,7 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
                                     searchText && !filteredSupermarkets.some(s => s.name.toLowerCase() === searchText.trim().toLowerCase()) ? (
                                         <TouchableOpacity style={styles.addButton} onPress={handleAddSupermarket}>
                                             <Plus size={20} color="#FFFFFF" />
-                                            <Text style={styles.addButtonText}>{t('add')} "{searchText}"</Text>
+                                            <Text style={styles.addButtonText}>{t('add')} {`"${searchText}"`}</Text>
                                         </TouchableOpacity>
                                     ) : null
                                 }

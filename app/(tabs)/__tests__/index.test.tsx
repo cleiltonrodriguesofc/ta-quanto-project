@@ -7,15 +7,13 @@ import { PriceEntry } from '@/types/price';
 
 // Mock dependencies
 jest.mock('@/utils/storage');
-jest.mock('react-native', () => ({
-  ...jest.requireActual('react-native'),
-  Alert: {
-    alert: jest.fn(),
-  },
-}));
+// No manual mock needed for react-native as it conflicts with jest-expo preset
 
 const mockStorage = storage as jest.Mocked<typeof storage>;
-const mockAlert = Alert.alert as jest.Mock;
+const mockAlert = jest.fn();
+jest.mock('react-native/Libraries/Alert/Alert', () => ({
+  alert: mockAlert,
+}));
 
 const mockPrices: PriceEntry[] = [
   {

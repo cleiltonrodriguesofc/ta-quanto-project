@@ -8,16 +8,14 @@ import * as location from '@/utils/location';
 // Mock dependencies
 jest.mock('@/utils/storage');
 jest.mock('@/utils/location');
-jest.mock('react-native', () => ({
-  ...jest.requireActual('react-native'),
-  Alert: {
-    alert: jest.fn(),
-  },
-}));
+// No manual mock needed for react-native as it conflicts with jest-expo preset
 
 const mockStorage = storage as jest.Mocked<typeof storage>;
 const mockLocation = location as jest.Mocked<typeof location>;
-const mockAlert = Alert.alert as jest.Mock;
+const mockAlert = jest.fn();
+jest.mock('react-native/Libraries/Alert/Alert', () => ({
+  alert: mockAlert,
+}));
 
 describe('RegisterScreen', () => {
   beforeEach(() => {
@@ -67,7 +65,7 @@ describe('RegisterScreen', () => {
 
   it('should save price entry successfully', async () => {
     mockStorage.savePriceEntry.mockResolvedValue();
-    
+
     const { getByPlaceholderText, getByText } = render(<RegisterScreen />);
 
     fireEvent.changeText(getByPlaceholderText('e.g., Milk 1L, Bread, Rice 5kg'), 'Milk 1L');
@@ -146,7 +144,7 @@ describe('RegisterScreen', () => {
 
   it('should handle save error', async () => {
     mockStorage.savePriceEntry.mockRejectedValue(new Error('Save failed'));
-    
+
     const { getByPlaceholderText, getByText } = render(<RegisterScreen />);
 
     fireEvent.changeText(getByPlaceholderText('e.g., Milk 1L, Bread, Rice 5kg'), 'Milk 1L');
