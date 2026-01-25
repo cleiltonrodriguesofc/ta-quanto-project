@@ -8,6 +8,7 @@ import { calculateLevel, calculateNextLevelProgress, getBadges } from '@/utils/g
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -42,6 +43,20 @@ export default function ProfileScreen() {
       }
     } else {
       setIsEditing(true);
+    }
+  };
+
+  const pickImage = async () => {
+    // No permissions request is necessary for launching the image library
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled) {
+      setSelectedAvatar(result.assets[0].uri);
     }
   };
 
@@ -96,6 +111,10 @@ export default function ProfileScreen() {
   };
 
   const getAvatarColor = (avatarId: string) => {
+    // If it looks like a URI, return transparent or default
+    if (avatarId.startsWith('file://') || avatarId.startsWith('http')) {
+      return '#E5E7EB';
+    }
     switch (avatarId) {
       case 'avatar1': return '#3A7DE8';
       case 'avatar2': return '#10B981';
@@ -105,6 +124,10 @@ export default function ProfileScreen() {
       case 'avatar6': return '#6B7280';
       default: return '#3A7DE8';
     }
+  };
+
+  const isCustomAvatar = (avatarId: string) => {
+    return avatarId.startsWith('file://') || avatarId.startsWith('http') || avatarId.startsWith('data:');
   };
 
   if (isEditing) {
@@ -118,9 +141,16 @@ export default function ProfileScreen() {
         <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.formCard}>
             <View style={styles.avatarSelectionContainer}>
-              <View style={[styles.avatarPreview, { backgroundColor: getAvatarColor(selectedAvatar) }]}>
-                <User size={48} color="#FFFFFF" />
-              </View>
+              <TouchableOpacity onPress={pickImage} style={[styles.avatarPreview, { backgroundColor: getAvatarColor(selectedAvatar), overflow: 'hidden' }]}>
+                {isCustomAvatar(selectedAvatar) ? (
+                  <Image source={{ uri: selectedAvatar }} style={{ width: '100%', height: '100%' }} />
+                ) : (
+                  <User size={48} color="#FFFFFF" />
+                )}
+                <View style={{ position: 'absolute', bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', width: '100%', alignItems: 'center', paddingVertical: 2 }}>
+                  <Edit2 size={12} color="white" />
+                </View>
+              </TouchableOpacity>
               <Text style={styles.label}>{t('choose_avatar')}</Text>
               <View style={styles.avatarGrid}>
                 {AVATAR_PRESETS.map((avatar) => (
@@ -133,7 +163,7 @@ export default function ProfileScreen() {
                     ]}
                     onPress={() => setSelectedAvatar(avatar)}
                   >
-                    {selectedAvatar === avatar && <View style={styles.selectedDot} />}
+                    {selectedAvatar === avatar && !isCustomAvatar(selectedAvatar) && <View style={styles.selectedDot} />}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -175,8 +205,12 @@ export default function ProfileScreen() {
 
             <View style={styles.profileMainInfo}>
               <View style={styles.avatarWrapper}>
-                <View style={[styles.avatarLarge, { backgroundColor: getAvatarColor(profile?.avatarId || 'avatar1') }]}>
-                  <User size={64} color="#FFFFFF" />
+                <View style={[styles.avatarLarge, { backgroundColor: getAvatarColor(profile?.avatarId || 'avatar1'), overflow: 'hidden' }]}>
+                  {profile?.avatarId && isCustomAvatar(profile.avatarId) ? (
+                    <Image source={{ uri: profile.avatarId }} style={{ width: '100%', height: '100%' }} />
+                  ) : (
+                    <User size={64} color="#FFFFFF" />
+                  )}
                 </View>
                 <TouchableOpacity style={styles.editBadge} onPress={() => setIsEditing(true)}>
                   <Edit2 size={14} color="#3A7DE8" />
