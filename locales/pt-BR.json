@@ -59,6 +59,7 @@
     "all": "Todos",
     "my_contributions": "Minhas Contribuições",
     "recent": "Recentes",
+    "recent_activity": "Atividade Recente",
     "me": "Eu",
     "no_contributions": "Nenhuma contribuição ainda",
     "no_matching_prices": "Nenhum preço encontrado",
@@ -134,5 +135,13 @@
     "scan_desc": "Use a câmera para identificar produtos",
     "community_desc": "Veja preços compartilhados pela comunidade",
     "manual_desc": "Adicione preço sem escanear",
-    "shopping_list_desc": "Planeje sua ida às compras"
+    "shopping_list_desc": "Planeje sua ida às compras",
+    "level": "Nível",
+    "points_unit": "Pontos",
+    "rank": "Rank",
+    "streak": "Streak",
+    "no_activity": "Nenhuma atividade recente encontrada.",
+    "privacy": "Privacidade",
+    "dark_mode": "Modo Escuro",
+    "notifications": "Notificações"
 }

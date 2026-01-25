@@ -59,6 +59,7 @@
     "all": "All",
     "my_contributions": "My Contributions",
     "recent": "Recent",
+    "recent_activity": "Recent Activity",
     "me": "Me",
     "no_contributions": "No contributions yet",
     "no_matching_prices": "No matching prices found",
@@ -134,5 +135,13 @@
     "scan_desc": "Use camera to identify products",
     "community_desc": "View shared prices from community",
     "manual_desc": "Add price without scanning",
-    "shopping_list_desc": "Plan your shopping trip"
+    "shopping_list_desc": "Plan your shopping trip",
+    "level": "Level",
+    "points_unit": "Points",
+    "rank": "Rank",
+    "streak": "Streak",
+    "no_activity": "No recent activity found.",
+    "privacy": "Privacy",
+    "dark_mode": "Dark Mode",
+    "notifications": "Notifications"
 }
