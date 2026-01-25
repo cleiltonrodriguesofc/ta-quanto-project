@@ -13,7 +13,7 @@ describe('Location Utils', () => {
   describe('getCurrentLocation', () => {
     it('should return location data with address', async () => {
       mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
-        status: 'granted',
+        status: 'granted' as any,
         granted: true,
         canAskAgain: true,
         expires: 'never',
@@ -43,6 +43,9 @@ describe('Location Utils', () => {
           name: null,
           isoCountryCode: 'BR',
           timezone: null,
+          streetNumber: '123',
+          subregion: null,
+          formattedAddress: 'Rua Augusta, Consolação, São Paulo, SP',
         },
       ]);
 
@@ -57,7 +60,7 @@ describe('Location Utils', () => {
 
     it('should return location data without address when geocoding fails', async () => {
       mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
-        status: 'granted',
+        status: 'granted' as any,
         granted: true,
         canAskAgain: true,
         expires: 'never',
@@ -88,7 +91,7 @@ describe('Location Utils', () => {
 
     it('should return null when permission is denied', async () => {
       mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
-        status: 'denied',
+        status: 'denied' as any,
         granted: false,
         canAskAgain: true,
         expires: 'never',
@@ -102,7 +105,7 @@ describe('Location Utils', () => {
 
     it('should return null when location fails', async () => {
       mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
-        status: 'granted',
+        status: 'granted' as any,
         granted: true,
         canAskAgain: true,
         expires: 'never',

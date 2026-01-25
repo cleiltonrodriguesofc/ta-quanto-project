@@ -1,52 +1,178 @@
-import React from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
-import { MapPin, Clock, Star } from 'lucide-react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Plus, Trash2, Circle, CheckCircle2, ShoppingCart } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ShoppingListItem } from '@/types/list';
+import { useTranslation } from 'react-i18next';
 
-export default function RoutesScreen() {
-  const handleComingSoon = () => {
+const LIST_KEY = 'taquanto_shopping_list';
+
+export default function ShoppingListScreen() {
+  const { t } = useTranslation();
+  const [items, setItems] = useState<ShoppingListItem[]>([]);
+  const [newItemName, setNewItemName] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
+
+  useEffect(() => {
+    loadList();
+  }, []);
+
+  const loadList = async () => {
+    try {
+      const storedList = await AsyncStorage.getItem(LIST_KEY);
+      if (storedList) {
+        setItems(JSON.parse(storedList));
+      }
+    } catch (error) {
+      console.error('Error loading shopping list:', error);
+    }
+  };
+
+  const saveList = async (newItems: ShoppingListItem[]) => {
+    try {
+      await AsyncStorage.setItem(LIST_KEY, JSON.stringify(newItems));
+      setItems(newItems);
+    } catch (error) {
+      console.error('Error saving shopping list:', error);
+      Alert.alert(t('error'), t('save_error'));
+    }
+  };
+
+  const addItem = () => {
+    if (!newItemName.trim()) return;
+
+    const newItem: ShoppingListItem = {
+      id: Date.now().toString(),
+      productName: newItemName.trim(),
+      isChecked: false,
+    };
+
+    const updatedList = [...items, newItem];
+    saveList(updatedList);
+    setNewItemName('');
+    setIsAdding(false);
+  };
+
+  const toggleItem = (id: string) => {
+    const updatedList = items.map(item =>
+      item.id === id ? { ...item, isChecked: !item.isChecked } : item
+    );
+    saveList(updatedList);
+  };
+
+  const deleteItem = (id: string) => {
+    const updatedList = items.filter(item => item.id !== id);
+    saveList(updatedList);
+  };
+
+  const clearCompleted = () => {
     Alert.alert(
-      'Coming Soon!',
-      'Route planning and optimization features will be available in the next version of TaQuanto?',
-      [{ text: 'OK' }]
+      t('clear_completed'),
+      t('clear_completed_confirm'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('clear'),
+          style: 'destructive',
+          onPress: () => {
+            const updatedList = items.filter(item => !item.isChecked);
+            saveList(updatedList);
+          },
+        },
+      ]
     );
   };
 
+  const renderItem = ({ item }: { item: ShoppingListItem }) => (
+    <View style={styles.itemCard}>
+      <TouchableOpacity
+        style={styles.checkbox}
+        onPress={() => toggleItem(item.id)}
+      >
+        {item.isChecked ? (
+          <CheckCircle2 size={24} color="#10B981" />
+        ) : (
+          <Circle size={24} color="#D1D5DB" />
+        )}
+      </TouchableOpacity>
+
+      <Text style={[styles.itemText, item.isChecked && styles.itemTextChecked]}>
+        {item.productName}
+      </Text>
+
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => deleteItem(item.id)}
+      >
+        <Trash2 size={20} color="#EF4444" />
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View style={styles.header}>
-        <Text style={styles.title}>My Routes</Text>
-        <Text style={styles.subtitle}>Plan your shopping efficiently</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.title}>{t('shopping_list')}</Text>
+          {items.some(i => i.isChecked) && (
+            <TouchableOpacity onPress={clearCompleted}>
+              <Text style={styles.clearText}>{t('clear_completed')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={styles.subtitle}>
+          {t('items_remaining', { count: items.filter(i => !i.isChecked).length })}
+        </Text>
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.comingSoonCard}>
-          <MapPin size={64} color="#3A7DE8" />
-          <Text style={styles.comingSoonTitle}>Route Planning Coming Soon!</Text>
-          <Text style={styles.comingSoonDescription}>
-            We're working on an amazing feature that will help you plan the most efficient shopping routes based on the best prices in your area.
-          </Text>
-          
-          <View style={styles.featureList}>
-            <View style={styles.featureItem}>
-              <Star size={20} color="#F59E0B" />
-              <Text style={styles.featureText}>Optimize routes by price and location</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Clock size={20} color="#10B981" />
-              <Text style={styles.featureText}>Save time with smart planning</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <MapPin size={20} color="#8B5CF6" />
-              <Text style={styles.featureText}>Find the best deals nearby</Text>
-            </View>
+      <FlatList
+        data={items}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <ShoppingCart size={64} color="#E5E7EB" />
+            <Text style={styles.emptyText}>{t('list_empty')}</Text>
+            <Text style={styles.emptySubtext}>{t('list_empty_subtext')}</Text>
           </View>
+        }
+      />
 
-          <TouchableOpacity style={styles.notifyButton} onPress={handleComingSoon}>
-            <Text style={styles.notifyButtonText}>Get Notified</Text>
+      <View style={styles.inputContainer}>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={styles.input}
+            placeholder={t('add_item_placeholder')}
+            value={newItemName}
+            onChangeText={setNewItemName}
+            onSubmitEditing={addItem}
+            placeholderTextColor="#9CA3AF"
+          />
+          <TouchableOpacity
+            style={[styles.addButton, !newItemName.trim() && styles.addButtonDisabled]}
+            onPress={addItem}
+            disabled={!newItemName.trim()}
+          >
+            <Plus size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -61,75 +187,103 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     backgroundColor: '#3A7DE8',
   },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
     color: '#E0E7FF',
   },
-  content: {
+  clearText: {
+    color: '#E0E7FF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  list: {
+    padding: 20,
+    paddingBottom: 100,
+    flexGrow: 1,
+  },
+  itemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  checkbox: {
+    marginRight: 12,
+  },
+  itemText: {
     flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  itemTextChecked: {
+    color: '#9CA3AF',
+    textDecorationLine: 'line-through',
+  },
+  deleteButton: {
+    padding: 8,
+  },
+  inputContainer: {
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  input: {
+    flex: 1,
+    height: 50,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 25,
     paddingHorizontal: 20,
-    paddingTop: 40,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  addButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#3A7DE8',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  comingSoonCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 32,
+  addButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  emptyState: {
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    width: '100%',
-    maxWidth: 350,
+    justifyContent: 'center',
+    paddingTop: 60,
   },
-  comingSoonTitle: {
-    fontSize: 24,
+  emptyText: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
-    marginTop: 20,
-    marginBottom: 12,
-    textAlign: 'center',
+    color: '#374151',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  comingSoonDescription: {
+  emptySubtext: {
     fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  featureList: {
-    gap: 16,
-    marginBottom: 32,
-    width: '100%',
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#4B5563',
-    flex: 1,
-  },
-  notifyButton: {
-    backgroundColor: '#3A7DE8',
-    borderRadius: 12,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-  },
-  notifyButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#9CA3AF',
   },
 });

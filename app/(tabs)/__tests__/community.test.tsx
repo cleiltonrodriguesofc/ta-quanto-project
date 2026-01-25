@@ -55,23 +55,27 @@ describe('CommunityScreen', () => {
 
     const { getByText, getByPlaceholderText } = render(<CommunityScreen />);
 
-    expect(getByText('Community Prices')).toBeTruthy();
-    expect(getByPlaceholderText('Search products or supermarkets...')).toBeTruthy();
-    expect(getByText('Recent')).toBeTruthy();
-    expect(getByText('Price')).toBeTruthy();
+    expect(getByText('community_prices')).toBeTruthy();
+    expect(getByPlaceholderText('search_placeholder')).toBeTruthy();
+    expect(getByText('recent')).toBeTruthy();
+    expect(getByText('price')).toBeTruthy();
 
     await waitFor(() => {
-      expect(getByText('3 prices shared')).toBeTruthy();
+      // "3 prices shared" logic might be dynamic: `${count} prices shared` or key with param.
+      // If it uses t('prices_shared_count', { count: ... }), and we mocked t returns key...
+      // It returns 'prices_shared_count'.
+      // If mock returns key, arguments are ignored.
+      expect(getByText('prices_shared_count')).toBeTruthy();
     });
   });
 
   it('should display price entries correctly', async () => {
     mockStorage.getStoredPrices.mockResolvedValue(mockPrices);
 
-    const { getByText } = render(<CommunityScreen />);
+    const { getByText, getAllByText } = render(<CommunityScreen />);
 
     await waitFor(() => {
-      expect(getByText('Milk 1L')).toBeTruthy();
+      expect(getAllByText('Milk 1L')[0]).toBeTruthy();
       expect(getByText('R$4.99')).toBeTruthy();
       expect(getByText('LocalMart')).toBeTruthy();
       expect(getByText('1L')).toBeTruthy();
@@ -82,17 +86,17 @@ describe('CommunityScreen', () => {
   it('should filter prices by search query', async () => {
     mockStorage.getStoredPrices.mockResolvedValue(mockPrices);
 
-    const { getByPlaceholderText, getByText, queryByText } = render(<CommunityScreen />);
+    const { getByPlaceholderText, getByText, getAllByText, queryByText } = render(<CommunityScreen />);
 
     await waitFor(() => {
-      expect(getByText('Milk 1L')).toBeTruthy();
+      expect(getAllByText('Milk 1L')[0]).toBeTruthy();
       expect(getByText('Bread Loaf')).toBeTruthy();
     });
 
-    fireEvent.changeText(getByPlaceholderText('Search products or supermarkets...'), 'Milk');
+    fireEvent.changeText(getByPlaceholderText('search_placeholder'), 'Milk');
 
     await waitFor(() => {
-      expect(getByText('Milk 1L')).toBeTruthy();
+      expect(getAllByText('Milk 1L')[0]).toBeTruthy();
       expect(queryByText('Bread Loaf')).toBeNull();
     });
   });
@@ -103,10 +107,10 @@ describe('CommunityScreen', () => {
     const { getByText, getAllByText } = render(<CommunityScreen />);
 
     await waitFor(() => {
-      expect(getByText('Milk 1L')).toBeTruthy();
+      expect(getAllByText('Milk 1L')[0]).toBeTruthy();
     });
 
-    fireEvent.press(getByText('Price'));
+    fireEvent.press(getByText('price'));
 
     await waitFor(() => {
       const priceElements = getAllByText(/R\$\d+\.\d+/);
@@ -123,8 +127,8 @@ describe('CommunityScreen', () => {
     const { getByText } = render(<CommunityScreen />);
 
     await waitFor(() => {
-      expect(getByText('No prices shared yet')).toBeTruthy();
-      expect(getByText('Start sharing prices to build the community database!')).toBeTruthy();
+      expect(getByText('no_prices_shared')).toBeTruthy();
+      expect(getByText('start_sharing_community_msg')).toBeTruthy();
     });
   });
 
@@ -133,18 +137,18 @@ describe('CommunityScreen', () => {
 
     const { getByPlaceholderText, getByText } = render(<CommunityScreen />);
 
-    fireEvent.changeText(getByPlaceholderText('Search products or supermarkets...'), 'NonExistentProduct');
+    fireEvent.changeText(getByPlaceholderText('search_placeholder'), 'NonExistentProduct');
 
     await waitFor(() => {
-      expect(getByText('No matching prices found')).toBeTruthy();
-      expect(getByText('Try searching for a different product')).toBeTruthy();
+      expect(getByText('no_matching_prices')).toBeTruthy();
+      expect(getByText('try_searching_msg')).toBeTruthy();
     });
   });
 
   it('should handle refresh functionality', async () => {
     mockStorage.getStoredPrices.mockResolvedValue(mockPrices);
 
-    const { getByTestId } = render(<CommunityScreen />);
+    const { } = render(<CommunityScreen />);
 
     // Note: Testing refresh requires finding the FlatList and triggering refresh
     // This is a simplified test - in a real scenario you'd need to find the FlatList

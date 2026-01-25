@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
+
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera, CreditCard as Edit3 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 export default function AddScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
 
   const handleScanProduct = () => {
     router.push('/scan');
@@ -23,12 +25,12 @@ export default function AddScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Add Price</Text>
-        <Text style={styles.subtitle}>Share a price with the community</Text>
+        <Text style={styles.title}>{t('add_price')}</Text>
+        <Text style={styles.subtitle}>{t('share_price_subtitle')}</Text>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Choose how to add a price:</Text>
+        <Text style={styles.sectionTitle}>{t('choose_add_method')}</Text>
 
         <TouchableOpacity
           style={styles.optionCard}
@@ -39,9 +41,9 @@ export default function AddScreen() {
             <Camera size={32} color="#3A7DE8" />
           </View>
           <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Scan Product</Text>
+            <Text style={styles.optionTitle}>{t('scan_product')}</Text>
             <Text style={styles.optionDescription}>
-              Use your camera to identify the product and capture price information
+              {t('scan_product_desc')}
             </Text>
           </View>
         </TouchableOpacity>
@@ -55,17 +57,17 @@ export default function AddScreen() {
             <Edit3 size={32} color="#10B981" />
           </View>
           <View style={styles.optionContent}>
-            <Text style={styles.optionTitle}>Manual Entry</Text>
+            <Text style={styles.optionTitle}>{t('manual_entry')}</Text>
             <Text style={styles.optionDescription}>
-              Manually enter product name, price, and supermarket details
+              {t('manual_entry_desc')}
             </Text>
           </View>
         </TouchableOpacity>
 
         <View style={styles.tipCard}>
-          <Text style={styles.tipTitle}>💡 Pro Tip</Text>
+          <Text style={styles.tipTitle}>💡 {t('pro_tip')}</Text>
           <Text style={styles.tipText}>
-            Scanning products is faster and helps ensure accurate product identification!
+            {t('pro_tip_desc')}
           </Text>
         </View>
       </View>

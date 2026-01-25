@@ -30,7 +30,7 @@ A collaborative supermarket price-sharing app built with React Native and Expo. 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd taquanto-app
+   cd taquanto-project
    ```
 
 2. **Install dependencies**
@@ -43,10 +43,25 @@ A collaborative supermarket price-sharing app built with React Native and Expo. 
    npm run dev
    ```
 
-4. **Run on device/simulator**
-   - Press `i` for iOS simulator
-   - Press `a` for Android emulator
-   - Scan QR code with Expo Go app for physical device testing
+### 🐳 Docker Development (Recommended)
+
+Run the entire environment with a single command:
+```bash
+docker compose up
+```
+
+### 🛡️ Quality Assurance (CI/CD)
+
+Before pushing changes, ensure all checks pass:
+```bash
+npm run ci:local
+```
+This runs Linting, TypeScript checks, and Tests in a single command.
+
+### 📱 Run on device/simulator
+- Press `i` for iOS simulator
+- Press `a` for Android emulator
+- Scan QR code with Expo Go app for physical device testing
 
 ## 📋 App Structure
 

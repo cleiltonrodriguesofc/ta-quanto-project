@@ -1,184 +1,159 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ScrollView,
-  ActivityIndicator,
+  Dimensions,
+  Image,
 } from 'react-native';
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { Camera, RotateCcw, CircleCheck as CheckCircle, X, MapPin } from 'lucide-react-native';
-import { mockVisionAPI } from '@/utils/mockVision';
-import { getCurrentLocation, formatLocationDisplay, LocationData } from '@/utils/location';
+import { ArrowLeft, Flashlight, X } from 'lucide-react-native';
+import { getProductByBarcode } from '@/utils/storage';
+import { fetchProductFromOpenFoodFacts } from '@/utils/api';
+import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
+import { useTranslation } from 'react-i18next';
+
+const { width } = Dimensions.get('window');
+const SCAN_SIZE = width * 0.7;
 
 export default function ScanScreen() {
   const router = useRouter();
-  const [facing, setFacing] = useState<CameraType>('back');
+  const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
-  const [isScanning, setIsScanning] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const cameraRef = useRef<CameraView>(null);
-  const [location, setLocation] = useState<LocationData | null>(null);
+  console.log(`[Scan] Permission status: ${permission?.status}`);
 
-  // Get location when component mounts
-  React.useEffect(() => {
-    const getLocation = async () => {
-      const currentLocation = await getCurrentLocation();
-      if (currentLocation) {
-        setLocation(currentLocation);
-      }
-    };
-    getLocation();
+  useEffect(() => {
+    console.log('[Scan] Camera mounted');
   }, []);
 
+  const [scanned, setScanned] = useState(false);
+  const [flash, setFlash] = useState(false);
+
   if (!permission) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#3A7DE8" />
-      </View>
-    );
+    return <View style={styles.container} />;
   }
 
   if (!permission.granted) {
     return (
       <View style={styles.permissionContainer}>
         <View style={styles.permissionCard}>
-          <Camera size={64} color="#3A7DE8" />
-          <Text style={styles.permissionTitle}>Camera Access Required</Text>
+          <Text style={styles.permissionTitle}>{t('camera_permission')}</Text>
           <Text style={styles.permissionDescription}>
-            TaQuanto? needs camera access to scan products and identify prices
+            {t('camera_permission')}
           </Text>
-          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>{t('grant_permission')}</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const toggleCameraFacing = () => {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
-  };
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    if (scanned) return;
+    setScanned(true);
 
-  const takePicture = async () => {
-    if (!cameraRef.current) return;
-
-    setIsScanning(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync();
-      if (photo) {
-        // Mock Vision API call
-        const productSuggestions = await mockVisionAPI(photo.uri);
-        setSuggestions(productSuggestions);
-        setShowSuggestions(true);
+      console.log(`[Scan] Processing barcode: ${data}`);
+
+      // 1. Check local DB
+      const existingProduct = await getProductByBarcode(data);
+
+      if (existingProduct) {
+        console.log('[Scan] Found in local DB:', existingProduct.productName);
+        // Found locally -> Redirect to Product Details
+        router.push(`/product/${data}`);
+        setTimeout(() => setScanned(false), 1000);
+      } else {
+        console.log('[Scan] Not found locally. Checking API...');
+        // 2. Check Public API
+        const apiProduct = await fetchProductFromOpenFoodFacts(data);
+
+        if (apiProduct) {
+          console.log('[Scan] Found in API:', apiProduct.name);
+          console.log('[Scan] API Image URL:', apiProduct.imageUrl);
+
+          // Found in API -> Redirect to Register with pre-filled data
+          router.push({
+            pathname: '/register',
+            params: {
+              barcode: data,
+              productName: apiProduct.name,
+              imageUrl: apiProduct.imageUrl,
+              brand: apiProduct.brand
+            }
+          });
+        } else {
+          console.log('[Scan] Not found in API. Redirecting to manual entry.');
+          // 3. Not found anywhere -> Redirect to Register (Manual)
+          router.push({
+            pathname: '/register',
+            params: { barcode: data }
+          });
+        }
+        setTimeout(() => setScanned(false), 1000);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to scan product. Please try again.');
-    } finally {
-      setIsScanning(false);
+      console.error('Error processing barcode:', error);
+      Alert.alert(t('error'), t('error'));
+      setScanned(false);
     }
   };
 
-  const selectProduct = (productName: string) => {
-    router.push({
-      pathname: '/register',
-      params: { 
-        productName,
-        location: location ? JSON.stringify(location) : undefined
-      }
-    });
-  };
-
-  const closeSuggestions = () => {
-    setShowSuggestions(false);
-    setSuggestions([]);
-  };
-
-  if (showSuggestions) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.suggestionsHeader}>
-          <Text style={styles.suggestionsTitle}>Product Suggestions</Text>
-          <TouchableOpacity onPress={closeSuggestions} style={styles.closeButton}>
-            <X size={24} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView style={styles.suggestionsContainer}>
-          <Text style={styles.suggestionsSubtitle}>
-            Select the product that matches what you scanned:
-          </Text>
-          
-          {suggestions.map((suggestion, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.suggestionCard}
-              onPress={() => selectProduct(suggestion)}
-              activeOpacity={0.7}
-            >
-              <CheckCircle size={24} color="#10B981" />
-              <Text style={styles.suggestionText}>{suggestion}</Text>
-            </TouchableOpacity>
-          ))}
-          
-          <TouchableOpacity
-            style={styles.manualEntryButton}
-            onPress={() => router.push('/register')}
-          >
-            <Text style={styles.manualEntryText}>Enter product name manually</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.cameraHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <X size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.cameraTitle}>Scan Product</Text>
-        <TouchableOpacity onPress={toggleCameraFacing} style={styles.flipButton}>
-          <RotateCcw size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
+      <CameraView
+        style={styles.camera}
+        facing="back"
+        enableTorch={flash}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"],
+        }}
+      />
 
-      <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        <View style={styles.scanOverlay}>
-          <View style={styles.scanFrame} />
-          <Text style={styles.scanInstructions}>
-            Point camera at product or price tag
-          </Text>
-          {location && (
-            <View style={styles.locationIndicator}>
-              <MapPin size={16} color="#FFFFFF" />
-              <Text style={styles.locationText}>
-                {formatLocationDisplay(location)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.cameraControls}>
+      <View style={styles.overlay}>
+        <View style={styles.header}>
           <TouchableOpacity
-            style={[styles.captureButton, isScanning && styles.captureButtonDisabled]}
-            onPress={takePicture}
-            disabled={isScanning}
-            activeOpacity={0.7}
+            style={styles.iconButton}
+            onPress={() => router.back()}
           >
-            {isScanning ? (
-              <ActivityIndicator size="large" color="#FFFFFF" />
-            ) : (
-              <Camera size={32} color="#FFFFFF" />
-            )}
+            <ArrowLeft size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.title}>{t('scan_barcode')}</Text>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => setFlash(!flash)}
+          >
+            <Flashlight size={24} color={flash ? '#F59E0B' : '#FFFFFF'} />
           </TouchableOpacity>
         </View>
-      </CameraView>
+
+        <View style={styles.scanArea}>
+          <View style={styles.scanFrame} />
+          <Text style={styles.scanText}>
+            {t('align_barcode')}
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.manualButton}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.manualButtonText}>{t('enter_manually')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Force Supermarket Selection if not set */}
+      <SupermarketSessionModal />
     </View>
   );
 }
@@ -186,14 +161,14 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#000',
   },
   permissionContainer: {
     flex: 1,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 20,
+    padding: 20,
   },
   permissionCard: {
     backgroundColor: '#FFFFFF',
@@ -209,10 +184,9 @@ const styles = StyleSheet.create({
     maxWidth: 350,
   },
   permissionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 20,
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -220,8 +194,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 24,
     marginBottom: 24,
+    lineHeight: 24,
   },
   permissionButton: {
     backgroundColor: '#3A7DE8',
@@ -234,149 +208,70 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  cameraHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  camera: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
+    zIndex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    paddingBottom: 20,
   },
-  backButton: {
-    padding: 8,
-  },
-  cameraTitle: {
+  title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  flipButton: {
+  iconButton: {
     padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
   },
-  camera: {
-    flex: 1,
-  },
-  scanOverlay: {
-    flex: 1,
+  scanArea: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   scanFrame: {
-    width: 250,
-    height: 250,
+    width: SCAN_SIZE,
+    height: SCAN_SIZE,
     borderWidth: 2,
     borderColor: '#3A7DE8',
-    borderRadius: 12,
+    borderRadius: 20,
     backgroundColor: 'transparent',
   },
-  scanInstructions: {
-    fontSize: 16,
+  scanText: {
     color: '#FFFFFF',
+    marginTop: 20,
+    fontSize: 16,
+    fontWeight: '500',
     backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    marginTop: 20,
-    textAlign: 'center',
+    overflow: 'hidden',
   },
-  locationIndicator: {
-    flexDirection: 'row',
+  footer: {
+    padding: 40,
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginTop: 12,
-    gap: 6,
   },
-  locationText: {
-    fontSize: 12,
+  manualButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  manualButtonText: {
     color: '#FFFFFF',
-    maxWidth: 200,
-  },
-  cameraControls: {
-    position: 'absolute',
-    bottom: 50,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#3A7DE8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  captureButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  suggestionsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: '#3A7DE8',
-  },
-  suggestionsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  suggestionsContainer: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 20,
-  },
-  suggestionsSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  suggestionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-    gap: 16,
-  },
-  suggestionText: {
-    fontSize: 16,
-    color: '#1F2937',
-    fontWeight: '500',
-    flex: 1,
-  },
-  manualEntryButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  manualEntryText: {
-    fontSize: 16,
-    color: '#6B7280',
     fontWeight: '600',
   },
 });

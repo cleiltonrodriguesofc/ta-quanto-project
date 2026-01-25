@@ -52,12 +52,51 @@ jest.mock('expo-location', () => ({
 }));
 
 // Mock react-native modules
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
+// jest.mock('react-native', () => {
+//   const RN = jest.requireActual('react-native');
+//   return {
+//     ...RN,
+//     Alert: {
+//       alert: jest.fn(),
+//     },
+//   };
+// });
+
+// Mock react-i18next
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key) => key,
+    i18n: {
+      changeLanguage: () => new Promise(() => { }),
+    },
+  }),
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => { },
+  },
+}));
+
+// Mock TurboModuleRegistry to handle DevMenu
+jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => {
+  const actual = jest.requireActual('react-native/Libraries/TurboModule/TurboModuleRegistry');
   return {
-    ...RN,
-    Alert: {
-      alert: jest.fn(),
+    ...actual,
+    getEnforcing: (name) => {
+      // Return a generic mock for any module to prevent crashes
+      const genericMock = {
+        show: jest.fn(),
+        reload: jest.fn(),
+        addListener: jest.fn(),
+        removeListeners: jest.fn(),
+        getConstants: () => ({}),
+      };
+
+      try {
+        return actual.getEnforcing(name);
+      } catch (e) {
+        // Fallback if not found
+        return genericMock;
+      }
     },
   };
 });

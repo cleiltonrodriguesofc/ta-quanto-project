@@ -7,40 +7,57 @@ import {
   TextInput,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
-import { Search, Filter, Clock, TrendingUp } from 'lucide-react-native';
-import { getStoredPrices } from '@/utils/storage';
+import { useRouter } from 'expo-router';
+import { Search, Clock, TrendingUp, User } from 'lucide-react-native';
+import { getStoredPrices, getUserProfile } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
 import { formatTimeAgo } from '@/utils/date';
 import { formatLocationDisplay } from '@/utils/location';
+import { UserProfile } from '@/types/user';
+import { useTranslation } from 'react-i18next';
 
 export default function CommunityScreen() {
+  const router = useRouter();
+  const { t } = useTranslation();
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'price'>('recent');
+  const [filterBy, setFilterBy] = useState<'all' | 'mine'>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    loadPrices();
+    loadData();
   }, []);
 
-  const loadPrices = async () => {
+  const loadData = async () => {
     try {
-      const storedPrices = await getStoredPrices();
+      const [storedPrices, profile] = await Promise.all([
+        getStoredPrices(),
+        getUserProfile()
+      ]);
       setPrices(storedPrices);
+      setUserProfile(profile);
     } catch (error) {
-      console.error('Error loading prices:', error);
+      console.error('Error loading data:', error);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadPrices();
+    await loadData();
     setRefreshing(false);
   };
 
   const filteredAndSortedPrices = useMemo(() => {
     let filtered = prices;
+
+    // Filter by user (My Contributions)
+    if (filterBy === 'mine' && userProfile?.id) {
+      filtered = filtered.filter(price => price.userId === userProfile.id);
+    }
 
     // Filter by search query
     if (searchQuery.trim()) {
@@ -58,35 +75,60 @@ export default function CommunityScreen() {
     }
 
     return filtered;
-  }, [prices, searchQuery, sortBy]);
+  }, [prices, searchQuery, sortBy, filterBy, userProfile]);
 
   const renderPriceItem = ({ item }: { item: PriceEntry }) => (
-    <View style={styles.priceCard}>
-      <View style={styles.priceHeader}>
-        <Text style={styles.productName}>{item.productName}</Text>
-        <Text style={styles.price}>R${item.price.toFixed(2)}</Text>
+    <TouchableOpacity
+      style={styles.priceCard}
+      onPress={() => router.push(`/product/${item.barcode}`)}
+    >
+      <View style={styles.cardContent}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.productImage} />
+        ) : (
+          <View style={styles.placeholderImage}>
+            <Search size={24} color="#CBD5E1" />
+          </View>
+        )}
+        <View style={styles.cardInfo}>
+          <View style={styles.priceHeader}>
+            <Text style={styles.productName} numberOfLines={2}>{item.productName}</Text>
+            <Text style={styles.price}>R${item.price.toFixed(2)}</Text>
+          </View>
+          <View style={styles.priceDetails}>
+            <Text style={styles.supermarket}>{item.supermarket}</Text>
+            {item.quantity && <Text style={styles.quantity}>{item.quantity}</Text>}
+          </View>
+          {item.location && (
+            <Text style={styles.location}>📍 {formatLocationDisplay(item.location)}</Text>
+          )}
+          <View style={styles.footer}>
+            <Text style={styles.timestamp}>{formatTimeAgo(new Date(item.timestamp))}</Text>
+            {item.userId === userProfile?.id && (
+              <View style={styles.myContributionTag}>
+                <User size={12} color="#3A7DE8" />
+                <Text style={styles.myContributionText}>{t('me')}</Text>
+              </View>
+            )}
+          </View>
+        </View>
       </View>
-      <View style={styles.priceDetails}>
-        <Text style={styles.supermarket}>{item.supermarket}</Text>
-        {item.quantity && <Text style={styles.quantity}>{item.quantity}</Text>}
-      </View>
-      {item.location && (
-        <Text style={styles.location}>📍 {formatLocationDisplay(item.location)}</Text>
-      )}
-      <Text style={styles.timestamp}>{formatTimeAgo(new Date(item.timestamp))}</Text>
-    </View>
+    </TouchableOpacity>
   );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Search size={48} color="#9CA3AF" />
       <Text style={styles.emptyTitle}>
-        {searchQuery ? 'No matching prices found' : 'No prices shared yet'}
+        {filterBy === 'mine' ? t('no_contributions') : (searchQuery ? t('no_matching_prices') : t('no_prices_shared'))}
       </Text>
       <Text style={styles.emptyDescription}>
-        {searchQuery 
-          ? 'Try searching for a different product' 
-          : 'Start sharing prices to build the community database!'
+        {filterBy === 'mine'
+          ? t('start_sharing_msg')
+          : (searchQuery
+            ? t('try_searching_msg')
+            : t('start_sharing_community_msg')
+          )
         }
       </Text>
     </View>
@@ -95,8 +137,8 @@ export default function CommunityScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Community Prices</Text>
-        <Text style={styles.subtitle}>{prices.length} price{prices.length !== 1 ? 's' : ''} shared</Text>
+        <Text style={styles.title}>{t('community_prices')}</Text>
+        <Text style={styles.subtitle}>{t('prices_shared_count', { count: prices.length })}</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -104,7 +146,7 @@ export default function CommunityScreen() {
           <Search size={20} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search products or supermarkets..."
+            placeholder={t('search_placeholder')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#9CA3AF"
@@ -112,25 +154,45 @@ export default function CommunityScreen() {
         </View>
       </View>
 
-      <View style={styles.sortContainer}>
-        <TouchableOpacity
-          style={[styles.sortButton, sortBy === 'recent' && styles.sortButtonActive]}
-          onPress={() => setSortBy('recent')}
-        >
-          <Clock size={16} color={sortBy === 'recent' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.sortButtonText, sortBy === 'recent' && styles.sortButtonTextActive]}>
-            Recent
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.sortButton, sortBy === 'price' && styles.sortButtonActive]}
-          onPress={() => setSortBy('price')}
-        >
-          <TrendingUp size={16} color={sortBy === 'price' ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[styles.sortButtonText, sortBy === 'price' && styles.sortButtonTextActive]}>
-            Price
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.filtersScroll}>
+        <View style={styles.sortContainer}>
+          <TouchableOpacity
+            style={[styles.sortButton, filterBy === 'all' && styles.sortButtonActive]}
+            onPress={() => setFilterBy('all')}
+          >
+            <Text style={[styles.sortButtonText, filterBy === 'all' && styles.sortButtonTextActive]}>
+              {t('all')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sortButton, filterBy === 'mine' && styles.sortButtonActive]}
+            onPress={() => setFilterBy('mine')}
+          >
+            <User size={16} color={filterBy === 'mine' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.sortButtonText, filterBy === 'mine' && styles.sortButtonTextActive]}>
+              {t('my_contributions')}
+            </Text>
+          </TouchableOpacity>
+          <View style={styles.divider} />
+          <TouchableOpacity
+            style={[styles.sortButton, sortBy === 'recent' && styles.sortButtonActive]}
+            onPress={() => setSortBy('recent')}
+          >
+            <Clock size={16} color={sortBy === 'recent' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.sortButtonText, sortBy === 'recent' && styles.sortButtonTextActive]}>
+              {t('recent')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sortButton, sortBy === 'price' && styles.sortButtonActive]}
+            onPress={() => setSortBy('price')}
+          >
+            <TrendingUp size={16} color={sortBy === 'price' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.sortButtonText, sortBy === 'price' && styles.sortButtonTextActive]}>
+              {t('price')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -194,11 +256,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
+  filtersScroll: {
+    marginTop: 16,
+  },
   sortContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginTop: 16,
-    gap: 12,
+    gap: 8,
+    paddingBottom: 8,
+    flexWrap: 'wrap',
   },
   sortButton: {
     flexDirection: 'row',
@@ -210,6 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     gap: 6,
+    marginBottom: 8,
   },
   sortButtonActive: {
     backgroundColor: '#3A7DE8',
@@ -223,9 +290,15 @@ const styles = StyleSheet.create({
   sortButtonTextActive: {
     color: '#FFFFFF',
   },
+  divider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 4,
+  },
   list: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 12,
     paddingBottom: 100,
   },
   emptyList: {
@@ -235,7 +308,7 @@ const styles = StyleSheet.create({
   priceCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -243,11 +316,32 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  cardContent: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  placeholderImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardInfo: {
+    flex: 1,
+  },
   priceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   productName: {
     fontSize: 18,
@@ -280,6 +374,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
   },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
   timestamp: {
     fontSize: 12,
     color: '#9CA3AF',
@@ -288,6 +388,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+  },
+  myContributionTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0E7FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    gap: 4,
+  },
+  myContributionText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#3A7DE8',
   },
   emptyState: {
     alignItems: 'center',
