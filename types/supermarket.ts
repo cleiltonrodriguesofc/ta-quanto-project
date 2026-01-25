@@ -1,8 +1,9 @@
 export interface Supermarket {
-    id: number;
+    id: string;
     name: string;
-    type: 'Supermarket' | 'Small Market' | 'Fruit Store/Sacolão';
-    address: string;
+    type?: 'Supermarket' | 'Small Market' | 'Fruit Store/Sacolão';
+    address?: string;
     latitude?: number;
     longitude?: number;
+    count?: number;
 }
