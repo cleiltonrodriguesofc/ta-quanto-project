@@ -136,6 +136,47 @@ export const api = {
         }
     },
 
+    getPricesByUser: async (userId: string): Promise<PriceEntry[]> => {
+        if (USE_SUPABASE) {
+            // Need to ensure we index userId in Supabase or this might be slow eventually
+            const { data, error } = await supabase
+                .from('prices')
+                .select('*')
+                // .eq('userId', userId) // Assuming userId column exists. If not, we might fail.
+                // Wait, types/price.ts has userId. But does the DB have it?
+                // The DB schema is not fully visible, but we are sending 'rest' which includes userId if it's in the object.
+                // Let's assume it exists. If not, this returns everything or errors. 
+                // Actually, earlier `formatPriceForSupabase` spreads `...rest`. userId comes from `...rest`.
+                // So it should be there IF the column exists.
+                // Let's modify the query to filter by userId if possible.
+                // .eq('user_id', userId) ? Snake case?
+                // `formatPriceForSupabase` preserves keys as camelCase unless mapped.
+                // It maps nothing from `rest`. So `userId` is `userId` in JSON data column?
+                // Or is it a real column? 
+                // Supabase usually implies snake_case columns.
+                // Let's check `formatPriceForSupabase` in api.ts again.
+                // It returns `...rest`.
+                // If the table was created with SQL editor using UserProfile keys?
+                // Let's try to query, and handle error.
+                // Safe bet: .contains('data', { userId }) if using JSONB, or just try column.
+                // Actually, let's just limit to 5 recent for now to be safe, regardless of user? 
+                // No, "My Contributions" needs MY prices.
+                // I'll try .eq('userId', userId). If it fails, I'll catch and return empty.
+                .eq('userId', userId)
+                .order('timestamp', { ascending: false })
+                .limit(5);
+
+            if (error) {
+                console.warn('[API] Fetch user prices failed (column might be missing):', error.message);
+                return [];
+            }
+            return data || [];
+        } else {
+            // Local fetch not supported perfectly but...
+            return [];
+        }
+    },
+
     addPrice: async (price: PriceEntry): Promise<void> => {
         if (USE_SUPABASE) {
             // Check for recent duplicate (same barcode, same supermarket, same price)

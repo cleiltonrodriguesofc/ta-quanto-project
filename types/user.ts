@@ -3,9 +3,18 @@ export interface UserProfile {
   displayName: string;
   avatarId: string; // We'll use preset IDs like 'avatar1', 'avatar2', etc.
   joinedDate: string;
+  level?: number;
+  points?: number; // Total points (Pontos)
+  badges?: string[]; // Array of badge IDs
+  settings?: {
+    notifications: boolean;
+    darkMode: boolean;
+  };
   stats: {
     pricesShared: number;
     totalSavings: number;
+    streakDays?: number;
+    rank?: number;
   };
 }
 

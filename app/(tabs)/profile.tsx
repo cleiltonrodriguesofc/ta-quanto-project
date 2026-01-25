@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput } from 'react-native';
-import { User, Trash2, Save } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Image, Platform } from 'react-native';
+import { User, Settings, Award, TrendingUp, DollarSign, Share2, LogOut, ChevronRight, Edit2, Shield, Bell, Moon } from 'lucide-react-native';
 import { UserProfile, AVATAR_PRESETS } from '@/types/user';
 import { getUserProfile, saveUserProfile, clearAllData } from '@/utils/storage';
-// import { useRouter } from 'expo-router';
+import { api } from '@/utils/api';
+import { calculateLevel, calculateNextLevelProgress, getBadges } from '@/utils/gamification';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 export default function ProfileScreen() {
-  // const router = useRouter(); 
   const { t } = useTranslation();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[0]);
+  const [levelInfo, setLevelInfo] = useState({ level: 1, progress: 0, totalNeeded: 50, percent: 0 });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
     loadProfile();
@@ -24,6 +28,18 @@ export default function ProfileScreen() {
     if (userProfile) {
       setDisplayName(userProfile.displayName);
       setSelectedAvatar(userProfile.avatarId);
+      // Calculate level based on points (shared count * 10 for demo, or just use shared count)
+      // Let's assume 1 share = 10 Pontos for now to make numbers look bigger/fun
+      const points = (userProfile.stats.pricesShared || 0) * 10;
+      setLevelInfo(calculateNextLevelProgress(points));
+
+      // Fetch activity
+      try {
+        const activity = await api.getPricesByUser(userProfile.id);
+        setRecentActivity(activity);
+      } catch (e) {
+        console.log('Failed to load activity', e);
+      }
     } else {
       setIsEditing(true);
     }
@@ -40,13 +56,22 @@ export default function ProfileScreen() {
       displayName: displayName.trim(),
       avatarId: selectedAvatar,
       joinedDate: profile?.joinedDate || new Date().toISOString(),
-      stats: profile?.stats || { pricesShared: 0, totalSavings: 0 },
+      stats: profile?.stats || { pricesShared: 0, totalSavings: 0, streakDays: 0, rank: 0 },
+      // Initialize settings/gamification if missing
+      level: levelInfo.level,
+      points: (profile?.stats.pricesShared || 0) * 10,
+      settings: profile?.settings || { notifications: true, darkMode: false },
     };
 
     await saveUserProfile(newProfile);
     setProfile(newProfile);
     setIsEditing(false);
-    Alert.alert(t('success'), t('success')); // Or a specific message
+
+    // update level info
+    const points = (newProfile.stats.pricesShared || 0) * 10;
+    setLevelInfo(calculateNextLevelProgress(points));
+
+    Alert.alert(t('success'), t('success'));
   };
 
   const handleClearData = () => {
@@ -84,89 +109,183 @@ export default function ProfileScreen() {
 
   if (isEditing) {
     return (
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{profile ? t('edit_profile') : t('create_profile')}</Text>
+      <View style={styles.container}>
+        <LinearGradient colors={['#3A7DE8', '#2563EB']} style={styles.headerBackground} />
+        <View style={styles.headerContentEdit}>
+          <Text style={styles.headerTitle}>{profile ? t('edit_profile') : t('create_profile')}</Text>
         </View>
-        <View style={styles.content}>
+
+        <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
           <View style={styles.formCard}>
-            <Text style={styles.label}>{t('choose_avatar')}</Text>
-            <View style={styles.avatarGrid}>
-              {AVATAR_PRESETS.map((avatar) => (
-                <TouchableOpacity
-                  key={avatar}
-                  style={[
-                    styles.avatarOption,
-                    { backgroundColor: getAvatarColor(avatar) },
-                    selectedAvatar === avatar && styles.avatarSelected
-                  ]}
-                  onPress={() => setSelectedAvatar(avatar)}
-                >
-                  <User size={32} color="#FFFFFF" />
-                </TouchableOpacity>
-              ))}
+            <View style={styles.avatarSelectionContainer}>
+              <View style={[styles.avatarPreview, { backgroundColor: getAvatarColor(selectedAvatar) }]}>
+                <User size={48} color="#FFFFFF" />
+              </View>
+              <Text style={styles.label}>{t('choose_avatar')}</Text>
+              <View style={styles.avatarGrid}>
+                {AVATAR_PRESETS.map((avatar) => (
+                  <TouchableOpacity
+                    key={avatar}
+                    style={[
+                      styles.avatarOption,
+                      { backgroundColor: getAvatarColor(avatar) },
+                      selectedAvatar === avatar && styles.avatarSelected
+                    ]}
+                    onPress={() => setSelectedAvatar(avatar)}
+                  >
+                    {selectedAvatar === avatar && <View style={styles.selectedDot} />}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
-            <Text style={styles.label}>{t('display_name')}</Text>
-            <TextInput
-              style={styles.input}
-              value={displayName}
-              onChangeText={setDisplayName}
-              placeholder={t('enter_name_placeholder')}
-              placeholderTextColor="#9CA3AF"
-            />
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>{t('display_name')}</Text>
+              <TextInput
+                style={styles.input}
+                value={displayName}
+                onChangeText={setDisplayName}
+                placeholder={t('enter_name_placeholder')}
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-              <Save size={20} color="#FFFFFF" />
               <Text style={styles.saveButtonText}>{t('save_profile')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
     );
   }
 
+  const points = (profile?.stats.pricesShared || 0) * 10;
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{t('profile')}</Text>
-      </View>
-
-      <ScrollView style={styles.content}>
-        <View style={styles.profileCard}>
-          <View style={[styles.avatarContainer, { backgroundColor: getAvatarColor(profile?.avatarId || 'avatar1') }]}>
-            <User size={48} color="#FFFFFF" />
-          </View>
-          <Text style={styles.profileTitle}>{profile?.displayName}</Text>
-          <Text style={styles.profileSubtitle}>{t('member_since')} {new Date(profile?.joinedDate || '').toLocaleDateString()}</Text>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{profile?.stats.pricesShared || 0}</Text>
-              <Text style={styles.statLabel}>{t('shared')}</Text>
+      <ScrollView style={styles.scrollView} bounces={false}>
+        {/* Header Section */}
+        <View style={styles.profileHeader}>
+          <LinearGradient colors={['#3A7DE8', '#1E40AF']} style={styles.headerGradient}>
+            <View style={styles.headerTopRow}>
+              <TouchableOpacity style={styles.iconButton} onPress={handleClearData}>
+                <Settings size={22} color="rgba(255,255,255,0.8)" />
+              </TouchableOpacity>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>R${(profile?.stats.totalSavings || 0).toFixed(2)}</Text>
-              <Text style={styles.statLabel}>{t('saved')}</Text>
-            </View>
-          </View>
 
-          <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-            <Text style={styles.editButtonText}>{t('edit_profile')}</Text>
+            <View style={styles.profileMainInfo}>
+              <View style={styles.avatarWrapper}>
+                <View style={[styles.avatarLarge, { backgroundColor: getAvatarColor(profile?.avatarId || 'avatar1') }]}>
+                  <User size={64} color="#FFFFFF" />
+                </View>
+                <TouchableOpacity style={styles.editBadge} onPress={() => setIsEditing(true)}>
+                  <Edit2 size={14} color="#3A7DE8" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.userName}>{profile?.displayName}</Text>
+              <Text style={styles.userJoined}>{t('member_since')} {new Date(profile?.joinedDate || '').getFullYear()}</Text>
+
+              {/* Level Progress */}
+              <View style={styles.levelContainer}>
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>Level {levelInfo.level}</Text>
+                </View>
+                <View style={styles.progressBarContainer}>
+                  <View style={[styles.progressBarFill, { width: `${Math.min(levelInfo.percent * 100, 100)}%` }]} />
+                </View>
+                <Text style={styles.pointsText}>{levelInfo.progress} / {levelInfo.totalNeeded} Pontos</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Stats Grid */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Share2 size={20} color="#3A7DE8" />
+            </View>
+            <Text style={styles.statValue}>{profile?.stats.pricesShared || 0}</Text>
+            <Text style={styles.statLabel}>{t('shared')}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#ECFDF5' }]}>
+              <DollarSign size={20} color="#10B981" />
+            </View>
+            <Text style={styles.statValue}>R${(profile?.stats.totalSavings || 0).toFixed(0)}</Text>
+            <Text style={styles.statLabel}>{t('saved')}</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#FAF5FF' }]}>
+              <TrendingUp size={20} color="#8B5CF6" />
+            </View>
+            <Text style={styles.statValue}>#{profile?.stats.rank || '-'}</Text>
+            <Text style={styles.statLabel}>Rank</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#FFF7ED' }]}>
+              <Award size={20} color="#F59E0B" />
+            </View>
+            <Text style={styles.statValue}>{profile?.stats.streakDays || 0}</Text>
+            <Text style={styles.statLabel}>Streak</Text>
+          </View>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>{t('recent_activity')}</Text>
+          {recentActivity.length > 0 ? (
+            recentActivity.map((item) => (
+              <View key={item.id} style={styles.activityCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ fontWeight: 'bold', color: '#1F2937' }}>{item.productName || 'Product'}</Text>
+                  <Text style={{ fontWeight: 'bold', color: '#10B981' }}>R$ {item.price.toFixed(2)}</Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#6B7280' }}>{item.supermarket} • {new Date(item.timestamp).toLocaleDateString()}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.activityCard}>
+              <Text style={{ color: '#6B7280', textAlign: 'center', padding: 20 }}>
+                No recent activity found.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Menu Options */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Settings</Text>
+          <View style={styles.menuContainer}>
+            <TouchableOpacity style={styles.menuRow}>
+              <View style={styles.menuIconBox}><Bell size={20} color="#6B7280" /></View>
+              <Text style={styles.menuText}>Notifications</Text>
+              <ChevronRight size={20} color="#D1D5DB" />
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuRow}>
+              <View style={styles.menuIconBox}><Moon size={20} color="#6B7280" /></View>
+              <Text style={styles.menuText}>Dark Mode</Text>
+              <ChevronRight size={20} color="#D1D5DB" />
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={styles.menuRow}>
+              <View style={styles.menuIconBox}><Shield size={20} color="#6B7280" /></View>
+              <Text style={styles.menuText}>Privacy</Text>
+              <ChevronRight size={20} color="#D1D5DB" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.sectionContainer}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleClearData}>
+            <LogOut size={20} color="#EF4444" />
+            <Text style={styles.logoutText}>Log Out / Clear Data</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.menuSection}>
-          <TouchableOpacity style={styles.menuItem} onPress={handleClearData}>
-            <Trash2 size={24} color="#EF4444" />
-            <Text style={[styles.menuText, { color: '#EF4444' }]}>{t('clear_all_data')}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.versionCard}>
-          <Text style={styles.versionText}>TaQuanto? MVP v1.0.0</Text>
-        </View>
+        <Text style={styles.footerText}>TaQuanto v1.0.0 (Build 100)</Text>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -175,178 +294,318 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F3F4F6',
   },
-  header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    backgroundColor: '#3A7DE8',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 20,
   },
-  formCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-    marginTop: 20,
-  },
-  avatarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 8,
-  },
-  avatarOption: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  avatarSelected: {
-    borderColor: '#1F2937',
-    borderWidth: 3,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#F9FAFB',
-    marginBottom: 24,
-  },
-  saveButton: {
+  // Header
+  profileHeader: {
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    overflow: 'hidden',
     backgroundColor: '#3A7DE8',
-    borderRadius: 12,
+    elevation: 5,
+    shadowColor: '#3A7DE8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  headerGradient: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+  },
+  headerTopRow: {
     flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 10,
+  },
+  iconButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+  },
+  profileMainInfo: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    gap: 8,
   },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 16,
   },
-  profileCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  avatarContainer: {
+  avatarLarge: {
     width: 100,
     height: 100,
     borderRadius: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    borderWidth: 4,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  profileTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  profileSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 24,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 24,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#3A7DE8',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#E5E7EB',
-  },
-  editButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 20,
-  },
-  editButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-  },
-  menuSection: {
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
     elevation: 2,
   },
-  menuItem: {
+  userName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  userJoined: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 20,
+  },
+  levelContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 16,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 8,
+  },
+  levelBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  levelText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#4ADE80',
+    borderRadius: 4,
+  },
+  pointsText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 20,
+    gap: 12,
+    justifyContent: 'space-between',
+    marginTop: -20, // Overlap header
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    width: '48%', // Approx 2 columns
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+
+  // Settings
+  sectionContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 16,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  menuContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    justifyContent: 'space-between',
+  },
+  menuIconBox: {
+    width: 32,
+    alignItems: 'center',
   },
   menuText: {
     fontSize: 16,
-    fontWeight: '500',
+    color: '#374151',
+    flex: 1,
+    marginLeft: 8,
   },
-  versionCard: {
+  menuDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginLeft: 56,
+  },
+  logoutButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'center',
+    backgroundColor: '#FEF2F2',
+    padding: 16,
+    borderRadius: 16,
+    gap: 8,
   },
-  versionText: {
-    fontSize: 14,
+  logoutText: {
+    color: '#EF4444',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  footerText: {
+    textAlign: 'center',
     color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 12,
+  },
+
+  // Edit Mode Styles
+  headerBackground: {
+    height: 120,
+    width: '100%',
+    position: 'absolute',
+    top: 0,
+  },
+  headerContentEdit: {
+    marginTop: 60,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  avatarSelectionContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  avatarPreview: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    elevation: 2,
+  },
+  avatarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    justifyContent: 'center',
+  },
+  avatarOption: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarSelected: {
+    borderWidth: 3,
+    borderColor: '#374151',
+    transform: [{ scale: 1.1 }],
+  },
+  selectedDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FFF',
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  inputContainer: {
+    marginBottom: 24,
+  },
+  input: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 12,
+    fontSize: 18,
+    color: '#1F2937',
+  },
+  saveButton: {
+    backgroundColor: '#3A7DE8',
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#3A7DE8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  activityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
   },
 });
