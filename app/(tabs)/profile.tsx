@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '@/utils/supabase';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
@@ -89,21 +90,31 @@ export default function ProfileScreen() {
     Alert.alert(t('success'), t('success'));
   };
 
-  const handleClearData = () => {
+  const handleLogout = async () => {
     Alert.alert(
-      t('clear_all_data'),
-      t('clear_data_confirm'),
+      t('logout'),
+      t('logout_confirm'),
       [
         { text: t('cancel'), style: 'cancel' },
         {
-          text: t('clear'),
+          text: t('logout'),
           style: 'destructive',
           onPress: async () => {
+            // 1. Supabase Sign Out
+            try {
+              await supabase.auth.signOut();
+            } catch (e) {
+              console.log('Supabase sign out error', e);
+            }
+
+            // 2. Clear Local Session
             await clearAllData();
+
+            // 3. Reset local state
             setProfile(null);
             setDisplayName('');
+            setRecentActivity([]);
             setIsEditing(true);
-            Alert.alert(t('data_cleared'), t('data_cleared_msg'));
           },
         },
       ]
@@ -198,7 +209,7 @@ export default function ProfileScreen() {
         <View style={styles.profileHeader}>
           <LinearGradient colors={['#3A7DE8', '#1E40AF']} style={styles.headerGradient}>
             <View style={styles.headerTopRow}>
-              <TouchableOpacity style={styles.iconButton} onPress={handleClearData}>
+              <TouchableOpacity style={styles.iconButton} onPress={handleLogout}>
                 <Settings size={22} color="rgba(255,255,255,0.8)" />
               </TouchableOpacity>
             </View>
@@ -312,9 +323,9 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.sectionContainer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleClearData}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <LogOut size={20} color="#EF4444" />
-            <Text style={styles.logoutText}>Log Out / Clear Data</Text>
+            <Text style={styles.logoutText}>{t('logout')}</Text>
           </TouchableOpacity>
         </View>
 

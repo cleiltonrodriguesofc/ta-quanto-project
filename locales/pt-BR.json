@@ -143,5 +143,7 @@
     "no_activity": "Nenhuma atividade recente encontrada.",
     "privacy": "Privacidade",
     "dark_mode": "Modo Escuro",
-    "notifications": "Notificações"
+    "notifications": "Notificações",
+    "logout": "Sair",
+    "logout_confirm": "Tem certeza que deseja sair?"
 }
