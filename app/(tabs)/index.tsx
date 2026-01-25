@@ -5,12 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin, RefreshCw } from 'lucide-react-native';
-import { getStoredPrices, syncLocalData } from '@/utils/storage';
+import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin } from 'lucide-react-native';
+import { getStoredPrices } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
 import { useTranslation } from 'react-i18next';
 

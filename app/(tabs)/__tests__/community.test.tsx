@@ -148,7 +148,7 @@ describe('CommunityScreen', () => {
   it('should handle refresh functionality', async () => {
     mockStorage.getStoredPrices.mockResolvedValue(mockPrices);
 
-    const { getByTestId } = render(<CommunityScreen />);
+    const { } = render(<CommunityScreen />);
 
     // Note: Testing refresh requires finding the FlatList and triggering refresh
     // This is a simplified test - in a real scenario you'd need to find the FlatList

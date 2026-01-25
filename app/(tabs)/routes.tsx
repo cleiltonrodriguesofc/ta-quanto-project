@@ -10,9 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { Plus, Trash2, Check, Circle, CheckCircle2, ShoppingCart } from 'lucide-react-native';
+import { Plus, Trash2, Circle, CheckCircle2, ShoppingCart } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ShoppingList, ShoppingListItem } from '@/types/list';
+import { ShoppingListItem } from '@/types/list';
 import { useTranslation } from 'react-i18next';
 
 const LIST_KEY = 'taquanto_shopping_list';
