@@ -12,6 +12,15 @@ jest.mock('../api', () => ({
   },
 }));
 
+// Mock Supabase
+jest.mock('../supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn().mockResolvedValue({ data: { session: { user: { id: 'test-user-id' } } } }),
+    },
+  },
+}));
+
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage');
 const mockAsyncStorage = AsyncStorage as jest.Mocked<typeof AsyncStorage>;

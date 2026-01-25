@@ -9,12 +9,7 @@ import * as ExpoLocation from 'expo-location';
 // Mock dependencies
 jest.mock('@/utils/storage');
 jest.mock('expo-location');
-jest.mock('react-native', () => ({
-  ...jest.requireActual('react-native'),
-  Alert: {
-    alert: jest.fn(),
-  },
-}));
+
 
 // Mock expo-router
 jest.mock('expo-router', () => ({
@@ -24,6 +19,14 @@ jest.mock('expo-router', () => ({
     back: jest.fn(),
   }),
   useLocalSearchParams: jest.fn(() => ({ barcode: '123456' })),
+}));
+
+// Mock AuthContext
+jest.mock('@/context/AuthContext', () => ({
+  useAuth: () => ({
+    session: { user: { id: 'test-user-id' } },
+    isAdmin: false,
+  }),
 }));
 
 // Mock SupermarketSelector to behave like a TextInput for testing
