@@ -70,8 +70,12 @@ export const getStoredPrices = async (): Promise<PriceEntry[]> => {
 
 export const savePriceEntry = async (priceEntry: Omit<PriceEntry, 'id'>): Promise<void> => {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id;
+
     const newPrice: PriceEntry = {
       ...priceEntry,
+      userId: priceEntry.userId || userId,
       id: generateId(),
     };
 

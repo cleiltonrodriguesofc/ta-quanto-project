@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Image, ActivityIndicator } from 'react-native';
 import { User, Settings, Award, TrendingUp, DollarSign, Share2, LogOut, ChevronRight, Edit2, Shield, Bell, Moon } from 'lucide-react-native';
 import { UserProfile, AVATAR_PRESETS } from '@/types/user';
 import { getUserProfile, saveUserProfile, clearAllData } from '@/utils/storage';
 import { api } from '@/utils/api';
-import { calculateLevel, calculateNextLevelProgress, getBadges } from '@/utils/gamification';
+import { calculateNextLevelProgress } from '@/utils/gamification';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/utils/supabase';
 import { useRouter } from 'expo-router';
@@ -31,7 +30,7 @@ export default function ProfileScreen() {
     } else if (user) {
       loadProfile();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   const loadProfile = async () => {
     const userProfile = await getUserProfile(user?.id);
@@ -228,8 +227,16 @@ export default function ProfileScreen() {
               />
             </View>
 
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProfile}>
-              <Text style={styles.saveButtonText}>{t('save_profile')}</Text>
+            <TouchableOpacity
+              style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+              onPress={handleSaveProfile}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveButtonText}>{t('save_profile')}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -678,6 +685,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#93C5FD',
   },
   saveButtonText: {
     color: '#FFFFFF',

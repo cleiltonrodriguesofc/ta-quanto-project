@@ -32,7 +32,7 @@ const stringToUuid = (str: string): string => {
 // - Generates deterministic UUID for legacy IDs
 const formatPriceForSupabase = (price: PriceEntry) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quantity, location, id, ...rest } = price;
+    const { quantity, location, id, userId, ...rest } = price;
 
     // Ensure ID is a valid UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -47,6 +47,7 @@ const formatPriceForSupabase = (price: PriceEntry) => {
     return {
         ...rest,
         id: finalId,
+        userId: userId || null,
         // latitude: location?.latitude,
         // longitude: location?.longitude,
         // address: location?.address,
@@ -165,7 +166,7 @@ export const api = {
                 // Safe bet: .contains('data', { userId }) if using JSONB, or just try column.
                 // Actually, let's just limit to 5 recent for now to be safe, regardless of user? 
                 // No, "My Contributions" needs MY prices.
-                // I'll try .eq('userId', userId). If it fails, I'll catch and return empty.
+                // Match the quoted "userId" column in Supabase schema
                 .eq('userId', userId)
                 .order('timestamp', { ascending: false })
                 .limit(5);
