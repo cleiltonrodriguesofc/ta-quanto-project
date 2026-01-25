@@ -7,6 +7,11 @@
     "icon": "./assets/images/icon.png",
     "scheme": "taquanto",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3A7DE8"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -16,7 +21,7 @@
       "package": "com.taquanto.app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
