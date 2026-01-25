@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Bell } from 'lucide-react-native';
@@ -6,10 +6,20 @@ import { MOCK_POSTS } from '@/utils/mockSocialData';
 import SocialPostCard from '@/components/SocialPostCard';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SocialScreen() {
     const router = useRouter();
     const { t } = useTranslation();
+    const { user, isLoading } = useAuth();
+
+    useEffect(() => {
+        if (!isLoading && !user) {
+            router.replace('/auth/login');
+        }
+    }, [user, isLoading]);
+
+    if (isLoading || !user) return null;
 
     const handleCreatePost = () => {
         router.push('/create-post' as any);

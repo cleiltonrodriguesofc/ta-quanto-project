@@ -12,10 +12,12 @@ import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin
 import { getStoredPrices } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [totalSavings, setTotalSavings] = useState(0);
   const [priceCount, setPriceCount] = useState(0);
   const [locationCount, setLocationCount] = useState(0);
@@ -55,7 +57,13 @@ export default function HomeScreen() {
       description: t('scan_desc'),
       icon: Camera,
       color: '#3A7DE8',
-      onPress: () => router.push('/scan'),
+      onPress: () => {
+        if (!user) {
+          router.push('/auth/login');
+        } else {
+          router.push('/scan');
+        }
+      },
     },
     {
       id: 'compare',
@@ -71,7 +79,13 @@ export default function HomeScreen() {
       description: t('manual_desc'),
       icon: PlusCircle,
       color: '#F59E0B',
-      onPress: () => router.push('/register'),
+      onPress: () => {
+        if (!user) {
+          router.push('/auth/login');
+        } else {
+          router.push('/register');
+        }
+      },
     },
     {
       id: 'routes',

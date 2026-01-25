@@ -18,12 +18,14 @@ import { formatTimeAgo } from '@/utils/date';
 import { formatLocationDisplay } from '@/utils/location';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProductDetailsScreen() {
     useKeepAwake();
     const { barcode } = useLocalSearchParams<{ barcode: string }>();
     const router = useRouter();
     const { t } = useTranslation();
+    const { user } = useAuth();
     const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
     const [prices, setPrices] = useState<PriceEntry[]>([]);
     const [loading, setLoading] = useState(true);
@@ -115,6 +117,10 @@ export default function ProductDetailsScreen() {
     const isUpdatedToday = currentSupermarketPrice && isToday(currentSupermarketPrice.timestamp);
 
     const handleConfirmPrice = async () => {
+        if (!user) {
+            router.push('/auth/login');
+            return;
+        }
         if (!currentSupermarketPrice) return;
 
         try {
@@ -131,6 +137,10 @@ export default function ProductDetailsScreen() {
     };
 
     const handleUpdatePrice = () => {
+        if (!user) {
+            router.push('/auth/login');
+            return;
+        }
         router.push({
             pathname: '/register',
             params: {

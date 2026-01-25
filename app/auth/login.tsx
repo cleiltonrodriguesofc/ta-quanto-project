@@ -6,26 +6,28 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
     const router = useRouter();
-    const { signInWithGoogle } = useAuth();
+    const { signInWithEmail } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleGoogleSignIn = async () => {
+
+
+    const handleEmailSignIn = async () => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Please enter your email and password');
+            return;
+        }
+
         try {
             setLoading(true);
-            await signInWithGoogle();
-            // AuthContext handles redirect or state change
+            await signInWithEmail(email, password);
+            router.replace('/(tabs)');
         } catch (error: any) {
-            Alert.alert('Google Sign-In Error', error.message);
+            Alert.alert('Login Error', error.message);
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleEmailSignIn = async () => {
-        // Placeholder for email sign in
-        Alert.alert('Email Sign-In', 'Not implemented yet');
     };
 
     return (
@@ -63,30 +65,24 @@ export default function LoginScreen() {
                     />
                 </View>
 
-                <TouchableOpacity style={styles.loginButton} onPress={handleEmailSignIn}>
-                    <Text style={styles.loginButtonText}>Log In</Text>
-                </TouchableOpacity>
-
-                <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>OR</Text>
-                    <View style={styles.dividerLine} />
-                </View>
-
                 <TouchableOpacity
-                    style={styles.googleButton}
-                    onPress={handleGoogleSignIn}
+                    style={[styles.loginButton, loading && styles.disabledButton]}
+                    onPress={handleEmailSignIn}
                     disabled={loading}
                 >
                     {loading ? (
-                        <ActivityIndicator color="#333" />
+                        <ActivityIndicator color="#fff" />
                     ) : (
-                        <>
-                            <Ionicons name="logo-google" size={24} color="#DB4437" style={styles.buttonIcon} />
-                            <Text style={styles.googleButtonText}>Sign in with Google</Text>
-                        </>
+                        <Text style={styles.loginButtonText}>Log In</Text>
                     )}
                 </TouchableOpacity>
+
+                <View style={styles.registerLink}>
+                    <Text style={styles.registerText}>Don't have an account? </Text>
+                    <TouchableOpacity onPress={() => router.push('/auth/register')}>
+                        <Text style={styles.registerLinkText}>Sign Up</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         </View>
     );
@@ -180,5 +176,22 @@ const styles = StyleSheet.create({
     },
     buttonIcon: {
         marginRight: 10,
+    },
+    disabledButton: {
+        opacity: 0.7,
+    },
+    registerLink: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        marginTop: 20,
+    },
+    registerText: {
+        color: '#666',
+        fontSize: 14,
+    },
+    registerLinkText: {
+        color: '#3A7DE8',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 });

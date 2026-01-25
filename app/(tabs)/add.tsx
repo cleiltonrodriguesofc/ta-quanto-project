@@ -9,10 +9,21 @@ import {
 import { useRouter } from 'expo-router';
 import { Camera, CreditCard as Edit3 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
 
 export default function AddScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace('/auth/login');
+    }
+  }, [user, isLoading]);
+
+  if (isLoading || !user) return null;
 
   const handleScanProduct = () => {
     router.push('/scan');

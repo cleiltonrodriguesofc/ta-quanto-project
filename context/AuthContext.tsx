@@ -11,6 +11,8 @@ type AuthContextType = {
     isLoading: boolean;
     signOut: () => Promise<void>;
     signInWithGoogle: () => Promise<void>;
+    signInWithEmail: (email: string, password: string) => Promise<void>;
+    signUpWithEmail: (email: string, password: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +21,8 @@ const AuthContext = createContext<AuthContextType>({
     isLoading: true,
     signOut: async () => { },
     signInWithGoogle: async () => { },
+    signInWithEmail: async () => { },
+    signUpWithEmail: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -49,6 +53,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const signOut = async () => {
         await supabase.auth.signOut();
+    };
+
+    const signInWithEmail = async (email: string, password: string) => {
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        if (error) throw error;
+    };
+
+    const signUpWithEmail = async (email: string, password: string) => {
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+        });
+        if (error) throw error;
     };
 
     const signInWithGoogle = async () => {
@@ -91,7 +111,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ session, user, isLoading, signOut, signInWithGoogle }}>
+        <AuthContext.Provider value={{ session, user, isLoading, signOut, signInWithGoogle, signInWithEmail, signUpWithEmail }}>
             {children}
         </AuthContext.Provider>
     );

@@ -14,18 +14,26 @@ import { Plus, Trash2, Circle, CheckCircle2, ShoppingCart } from 'lucide-react-n
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShoppingListItem } from '@/types/list';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
 
 const LIST_KEY = 'taquanto_shopping_list';
 
 export default function ShoppingListScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    loadList();
-  }, []);
+    if (!authLoading && !user) {
+      router.replace('/auth/login');
+    } else if (user) {
+      loadList();
+    }
+  }, [user, authLoading]);
 
   const loadList = async () => {
     try {
@@ -118,6 +126,10 @@ export default function ShoppingListScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  if (authLoading || !user) {
+    return null;
+  }
 
   return (
     <KeyboardAvoidingView

@@ -61,20 +61,24 @@ const formatPriceForSupabase = (price: PriceEntry) => {
 // - Validates ID is UUID (Supabase requirement)
 const formatUserForSupabase = (user: UserProfile) => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { avatarId, displayName, joinedDate, stats, ...rest } = user;
+    const { avatarId, displayName, joinedDate, stats, level, points, badges, settings, ...rest } = user;
 
-    // Check if ID is a valid UUID
+    // Ensure ID is a valid UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let finalId = user.id;
+
     if (!uuidRegex.test(user.id)) {
-        console.warn(`[API] Skipping user sync for legacy ID: ${user.id}`);
-        return null; // Return null for invalid IDs
+        // Generate deterministic UUID for legacy IDs
+        finalId = stringToUuid(user.id);
+        console.log(`[API] Converted legacy User ID ${user.id} -> ${finalId}`);
     }
 
     return {
         ...rest,
-        avatar_url: avatarId, // Map avatarId -> avatar_url
-        full_name: displayName, // Map displayName -> full_name
-        created_at: joinedDate, // Map joinedDate -> created_at
+        id: finalId,
+        avatar_url: avatarId || null,
+        full_name: displayName || 'Anonymous',
+        created_at: joinedDate || user.joinedDate || new Date().toISOString(),
     };
 };
 
@@ -252,10 +256,38 @@ export const api = {
                 .single();
 
             if (error) {
-                if (error.code === 'PGRST116') return null;
+                if (error.code === 'PGRST116') {
+                    console.log(`[API] User ${id} not found in 'users' table.`);
+                    return null;
+                }
+                console.error(`[API] getUser error:`, error);
                 throw new Error(`Supabase error: ${error.message}`);
             }
-            return data;
+
+            console.log(`[API] Found user in DB:`, data.full_name);
+
+            // Fetch actual price count for stats
+            const { count: pricesCount } = await supabase
+                .from('prices')
+                .select('*', { count: 'exact', head: true })
+                .eq('userId', id);
+
+            // Map Supabase fields back to UserProfile
+            return {
+                id: data.id,
+                displayName: data.full_name || 'Anonymous',
+                avatarId: data.avatar_url || 'avatar1',
+                joinedDate: data.created_at,
+                stats: {
+                    pricesShared: pricesCount || data.pricesShared || 0,
+                    totalSavings: data.totalSavings || 0,
+                    streakDays: 0,
+                    rank: 0
+                },
+                level: 1, // Will be recalculated in UI
+                points: (pricesCount || 0) * 10,
+                settings: { notifications: true, darkMode: false }
+            } as UserProfile;
         } else {
             const response = await fetch(`${API_URL}/users/${id}`, {
                 headers: { 'Bypass-Tunnel-Reminder': 'true' }
@@ -275,8 +307,28 @@ export const api = {
             const formattedUser = formatUserForSupabase(user);
             if (!formattedUser) return; // Skip invalid users
 
-            const { error } = await supabase.from('users').upsert([formattedUser]);
-            if (error) throw new Error(`Supabase error: ${error.message}`);
+            console.log(`[API] Saving user to Supabase:`, formattedUser.id, formattedUser.full_name);
+            const { error: upsertError } = await supabase.from('users').upsert([formattedUser]);
+
+            if (upsertError) {
+                console.error(`[API] Error saving to 'users' table:`, upsertError);
+                // Don't throw yet, try Auth metadata update too
+            }
+
+            // Also update Supabase Auth metadata if we have a session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user.id === user.id) {
+                console.log(`[API] Updating Auth metadata for:`, user.id);
+                const { error: authError } = await supabase.auth.updateUser({
+                    data: {
+                        full_name: user.displayName,
+                        avatar_url: user.avatarId
+                    }
+                });
+                if (authError) console.error(`[API] Error updating Auth metadata:`, authError);
+            }
+
+            if (upsertError) throw new Error(`Failed to save to database: ${upsertError.message}`);
         } else {
             const response = await fetch(`${API_URL}/users`, {
                 method: 'POST',
@@ -291,6 +343,68 @@ export const api = {
                 const text = await response.text();
                 throw new Error(`Failed to save user: ${response.status} ${text}`);
             }
+        }
+    },
+
+    uploadAvatar: async (userId: string, imageUri: string): Promise<string> => {
+        if (!USE_SUPABASE) return imageUri;
+
+        // If it's already a remote URL, skip upload
+        if (imageUri.startsWith('http')) return imageUri;
+
+        try {
+            const fileName = `${Date.now()}.jpg`;
+            const filePath = `avatars/${userId}/${fileName}`;
+
+            // 1. Get Blob from local URI
+            const response = await fetch(imageUri);
+            const blob = await response.blob();
+
+            // 2. Convert Blob to ArrayBuffer (more reliable for RN network requests)
+            const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    if (reader.result instanceof ArrayBuffer) {
+                        resolve(reader.result);
+                    } else {
+                        reject(new Error('Failed to convert blob to ArrayBuffer'));
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(blob);
+            });
+
+            // 3. Upload ArrayBuffer
+            const { error, data } = await supabase.storage
+                .from('profiles')
+                .upload(filePath, arrayBuffer, {
+                    contentType: 'image/jpeg',
+                    upsert: true,
+                    // Limit upload speed/retry if needed
+                });
+
+            // Log size in KB for debugging
+            console.log(`[API] Uploaded avatar size: ${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
+
+            if (arrayBuffer.byteLength > 1024 * 1024) { // 1MB Hard Limit check
+                console.warn(`[API] Warning: Large avatar upload detected (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+            }
+
+            if (error) {
+                if (error.message.includes('bucket not found')) {
+                    throw new Error('Supabase storage bucket "profiles" not found. Please create it in your Supabase dashboard and set it to public.');
+                }
+                throw error;
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('profiles')
+                .getPublicUrl(filePath);
+
+            return publicUrl;
+        } catch (error: any) {
+            console.error('[API] Avatar upload failed:', error);
+            throw new Error(`Avatar upload failed: ${error.message}`);
         }
     },
 };
