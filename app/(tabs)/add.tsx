@@ -1,16 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-
   TouchableOpacity,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Camera, CreditCard as Edit3 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
-import { useEffect } from 'react';
 
 export default function AddScreen() {
   const router = useRouter();
@@ -21,7 +19,7 @@ export default function AddScreen() {
     if (!isLoading && !user) {
       router.replace('/auth/login');
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, router]);
 
   if (isLoading || !user) return null;
 

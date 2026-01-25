@@ -74,7 +74,7 @@ describe('HomeScreen', () => {
   it('should display correct statistics', async () => {
     mockStorage.getStoredPrices.mockResolvedValue(mockPrices);
 
-    const { getByText, getAllByText } = render(<HomeScreen />);
+    const { getByText } = render(<HomeScreen />);
 
     await waitFor(() => {
       // Savings: 2 * 2.50 = 5.00
