@@ -10,9 +10,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/utils/supabase';
+import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -115,6 +117,9 @@ export default function ProfileScreen() {
             setDisplayName('');
             setRecentActivity([]);
             setIsEditing(true);
+
+            // 4. Redirect to login
+            router.replace('/auth/login');
           },
         },
       ]
