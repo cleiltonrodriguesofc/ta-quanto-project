@@ -138,6 +138,22 @@ export const api = {
 
     addPrice: async (price: PriceEntry): Promise<void> => {
         if (USE_SUPABASE) {
+            // Check for recent duplicate (same barcode, same supermarket, same price)
+            // We only check the LAST entry. If the price hasn't changed, we don't need a new record.
+            const { data: latest } = await supabase
+                .from('prices')
+                .select('price')
+                .eq('barcode', price.barcode)
+                .eq('supermarket', price.supermarket)
+                .order('timestamp', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (latest && latest.price === price.price) {
+                console.log('[API] Skipping duplicate price submission');
+                return;
+            }
+
             const { error } = await supabase.from('prices').upsert([formatPriceForSupabase(price)]);
             if (error) throw new Error(`Supabase error: ${error.message}`);
         } else {
