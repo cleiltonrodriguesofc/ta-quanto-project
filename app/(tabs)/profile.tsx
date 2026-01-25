@@ -11,30 +11,37 @@ import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/utils/supabase';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
 
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[0]);
   const [levelInfo, setLevelInfo] = useState({ level: 1, progress: 0, totalNeeded: 50, percent: 0 });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (!authLoading && !user) {
+      router.replace('/auth/login');
+    } else if (user) {
+      loadProfile();
+    }
+  }, [user, authLoading]);
 
   const loadProfile = async () => {
-    const userProfile = await getUserProfile();
+    const userProfile = await getUserProfile(user?.id);
     setProfile(userProfile);
     if (userProfile) {
-      setDisplayName(userProfile.displayName);
-      setSelectedAvatar(userProfile.avatarId);
+      setDisplayName(userProfile.displayName || '');
+      setSelectedAvatar(userProfile.avatarId || 'avatar1');
       // Calculate level based on points (shared count * 10 for demo, or just use shared count)
       // Let's assume 1 share = 10 Pontos for now to make numbers look bigger/fun
-      const points = (userProfile.stats.pricesShared || 0) * 10;
+      const points = (userProfile.stats?.pricesShared || 0) * 10;
       setLevelInfo(calculateNextLevelProgress(points));
 
       // Fetch activity
@@ -52,10 +59,10 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     // No permissions request is necessary for launching the image library
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.3, // Lower quality for smaller file size (kb instead of mb)
     });
 
     if (!result.canceled) {
@@ -69,27 +76,48 @@ export default function ProfileScreen() {
       return;
     }
 
-    const newProfile: UserProfile = {
-      id: profile?.id || Date.now().toString(),
-      displayName: displayName.trim(),
-      avatarId: selectedAvatar,
-      joinedDate: profile?.joinedDate || new Date().toISOString(),
-      stats: profile?.stats || { pricesShared: 0, totalSavings: 0, streakDays: 0, rank: 0 },
-      // Initialize settings/gamification if missing
-      level: levelInfo.level,
-      points: (profile?.stats.pricesShared || 0) * 10,
-      settings: profile?.settings || { notifications: true, darkMode: false },
-    };
+    setIsLoading(true);
+    try {
+      let finalAvatarId = selectedAvatar;
 
-    await saveUserProfile(newProfile);
-    setProfile(newProfile);
-    setIsEditing(false);
+      // 1. If avatar is local, upload it
+      if (isCustomAvatar(selectedAvatar) && selectedAvatar.startsWith('file://')) {
+        try {
+          if (profile?.id) {
+            finalAvatarId = await api.uploadAvatar(profile.id, selectedAvatar);
+          }
+        } catch (e) {
+          console.error('Avatar upload failed, using local fallback', e);
+        }
+      }
 
-    // update level info
-    const points = (newProfile.stats.pricesShared || 0) * 10;
-    setLevelInfo(calculateNextLevelProgress(points));
+      const newProfile: UserProfile = {
+        id: user?.id || profile?.id || Date.now().toString(),
+        displayName: displayName.trim(),
+        avatarId: finalAvatarId,
+        joinedDate: profile?.joinedDate || new Date().toISOString(),
+        stats: profile?.stats || { pricesShared: 0, totalSavings: 0, streakDays: 0, rank: 0 },
+        // Initialize settings/gamification if missing
+        level: levelInfo.level,
+        points: (profile?.stats?.pricesShared || 0) * 10,
+        settings: profile?.settings || { notifications: true, darkMode: false },
+      };
 
-    Alert.alert(t('success'), t('success'));
+      await saveUserProfile(newProfile);
+      setProfile(newProfile);
+      setIsEditing(false);
+
+      // update level info
+      const points = (newProfile.stats?.pricesShared || 0) * 10;
+      setLevelInfo(calculateNextLevelProgress(points));
+
+      Alert.alert(t('success'), t('success'));
+    } catch (error) {
+      console.error('Save profile failed', error);
+      Alert.alert(t('error'), t('error'));
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -145,6 +173,10 @@ export default function ProfileScreen() {
   const isCustomAvatar = (avatarId: string) => {
     return avatarId.startsWith('file://') || avatarId.startsWith('http') || avatarId.startsWith('data:');
   };
+
+  if (authLoading || !user) {
+    return null;
+  }
 
   if (isEditing) {
     return (

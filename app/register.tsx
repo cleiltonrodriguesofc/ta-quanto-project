@@ -17,8 +17,7 @@ import { ArrowLeft, Save, MapPin, Camera } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import {
   launchCameraAsync,
-  requestCameraPermissionsAsync,
-  MediaTypeOptions
+  requestCameraPermissionsAsync
 } from 'expo-image-picker';
 import { savePriceEntry } from '@/utils/storage';
 import { SupermarketSelector } from '@/components/SupermarketSelector';
@@ -81,10 +80,10 @@ export default function RegisterScreen() {
     }
 
     const result = await launchCameraAsync({
-      mediaTypes: MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: false,
       aspect: [1, 1],
-      quality: 0.5,
+      quality: 0.3, // Optimized for KB size
     });
 
     if (!result.canceled) {

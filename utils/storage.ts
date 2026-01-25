@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PriceEntry } from '@/types/price';
 import { UserProfile } from '@/types/user';
 import { api, checkApiConnection } from './api';
+import { supabase } from './supabase';
 
 const STORAGE_KEY = 'taquanto_prices';
 const USER_KEY = 'taquanto_user';
@@ -103,17 +104,34 @@ export const clearAllPrices = async (): Promise<void> => {
   }
 };
 
-export const getUserProfile = async (): Promise<UserProfile | null> => {
+export const getUserProfile = async (userId?: string): Promise<UserProfile | null> => {
   try {
-    // Try API
-    const isConnected = await checkApiConnection();
-    if (isConnected) {
-      // We need the ID to fetch from API. 
-      // For now, let's assume we store the user ID locally or fetch the local profile to get the ID.
+    let finalId = userId;
+
+    // 1. If no ID provided, try to get from local storage
+    if (!finalId) {
       const localData = await AsyncStorage.getItem(USER_KEY);
       if (localData) {
-        const localProfile = JSON.parse(localData);
-        const remoteProfile = await api.getUser(localProfile.id);
+        try {
+          const localProfile = JSON.parse(localData);
+          finalId = localProfile.id;
+        } catch (e) {
+          console.error('[Storage] Failed to parse local user data', e);
+        }
+      }
+    }
+
+    // 2. If we still have no ID, try to get from active Supabase session
+    if (!finalId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      finalId = session?.user?.id;
+    }
+
+    // 3. If we have an ID and connection, try to fetch from API
+    if (finalId) {
+      const isConnected = await checkApiConnection();
+      if (isConnected) {
+        const remoteProfile = await api.getUser(finalId);
         if (remoteProfile) {
           // Update local with remote latest
           await AsyncStorage.setItem(USER_KEY, JSON.stringify(remoteProfile));
@@ -122,7 +140,7 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
       }
     }
 
-    // Fallback local
+    // 4. Fallback to local storage if API failed or no ID found
     const storedData = await AsyncStorage.getItem(USER_KEY);
     return storedData ? JSON.parse(storedData) : null;
   } catch (error) {
