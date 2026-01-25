@@ -222,12 +222,12 @@ export default function ProfileScreen() {
               {/* Level Progress */}
               <View style={styles.levelContainer}>
                 <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>Level {levelInfo.level}</Text>
+                  <Text style={styles.levelText}>{t('level')} {levelInfo.level}</Text>
                 </View>
                 <View style={styles.progressBarContainer}>
                   <View style={[styles.progressBarFill, { width: `${Math.min(levelInfo.percent * 100, 100)}%` }]} />
                 </View>
-                <Text style={styles.pointsText}>{levelInfo.progress} / {levelInfo.totalNeeded} Pontos</Text>
+                <Text style={styles.pointsText}>{levelInfo.progress} / {levelInfo.totalNeeded} {t('points_unit')}</Text>
               </View>
             </View>
           </LinearGradient>
@@ -254,14 +254,14 @@ export default function ProfileScreen() {
               <TrendingUp size={20} color="#8B5CF6" />
             </View>
             <Text style={styles.statValue}>#{profile?.stats.rank || '-'}</Text>
-            <Text style={styles.statLabel}>Rank</Text>
+            <Text style={styles.statLabel}>{t('rank')}</Text>
           </View>
           <View style={styles.statCard}>
             <View style={[styles.statIcon, { backgroundColor: '#FFF7ED' }]}>
               <Award size={20} color="#F59E0B" />
             </View>
             <Text style={styles.statValue}>{profile?.stats.streakDays || 0}</Text>
-            <Text style={styles.statLabel}>Streak</Text>
+            <Text style={styles.statLabel}>{t('streak')}</Text>
           </View>
         </View>
 
@@ -281,7 +281,7 @@ export default function ProfileScreen() {
           ) : (
             <View style={styles.activityCard}>
               <Text style={{ color: '#6B7280', textAlign: 'center', padding: 20 }}>
-                No recent activity found.
+                {t('no_activity')}
               </Text>
             </View>
           )}
@@ -289,23 +289,23 @@ export default function ProfileScreen() {
 
         {/* Menu Options */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Settings</Text>
+          <Text style={styles.sectionTitle}>{t('settings')}</Text>
           <View style={styles.menuContainer}>
             <TouchableOpacity style={styles.menuRow}>
               <View style={styles.menuIconBox}><Bell size={20} color="#6B7280" /></View>
-              <Text style={styles.menuText}>Notifications</Text>
+              <Text style={styles.menuText}>{t('notifications')}</Text>
               <ChevronRight size={20} color="#D1D5DB" />
             </TouchableOpacity>
             <View style={styles.menuDivider} />
             <TouchableOpacity style={styles.menuRow}>
               <View style={styles.menuIconBox}><Moon size={20} color="#6B7280" /></View>
-              <Text style={styles.menuText}>Dark Mode</Text>
+              <Text style={styles.menuText}>{t('dark_mode')}</Text>
               <ChevronRight size={20} color="#D1D5DB" />
             </TouchableOpacity>
             <View style={styles.menuDivider} />
             <TouchableOpacity style={styles.menuRow}>
               <View style={styles.menuIconBox}><Shield size={20} color="#6B7280" /></View>
-              <Text style={styles.menuText}>Privacy</Text>
+              <Text style={styles.menuText}>{t('privacy')}</Text>
               <ChevronRight size={20} color="#D1D5DB" />
             </TouchableOpacity>
           </View>
