@@ -55,15 +55,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="supermarkets"
-        options={{
-          title: t('supermarkets'),
-          tabBarIcon: ({ size, color }) => (
-            <Store size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="products"
         options={{
           title: t('products') || 'Products',
@@ -82,8 +73,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="supermarkets"
+        options={{
+          title: t('supermarkets'),
+          tabBarIcon: ({ size, color }) => (
+            <Store size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="routes"
         options={{
+          href: null, // Hidden as requested
           title: t('routes'),
           tabBarIcon: ({ size, color }) => (
             <MapPin size={size} color={color} />
