@@ -67,16 +67,34 @@ export default function ScanScreen() {
       const existingProduct = await getProductByBarcode(data);
       let productData: Partial<PriceEntry> | null = existingProduct;
 
-      if (!existingProduct) {
+      // If product exists but has no image, try to fetch from API to enrich it
+      if (existingProduct && !existingProduct.imageUrl) {
+        console.log(`[Scan] Product ${existingProduct.productName} (local) has no image. Attempting enrichment...`);
+        const apiProduct = await fetchProductFromOpenFoodFacts(data);
+
+        if (apiProduct && apiProduct.imageUrl) {
+          console.log(`[Scan] Enrichment successful! Found image: ${apiProduct.imageUrl}`);
+          productData = {
+            ...existingProduct,
+            imageUrl: apiProduct.imageUrl
+          };
+        } else {
+          console.log('[Scan] Enrichment failed: No image found in API.');
+        }
+      } else if (!existingProduct) {
+        console.log('[Scan] Product not found locally. Checking API...');
         // Try API
         const apiProduct = await fetchProductFromOpenFoodFacts(data);
         if (apiProduct) {
+          console.log(`[Scan] Found in API: ${apiProduct.name}`);
           productData = {
             barcode: data,
             productName: apiProduct.name,
             brand: apiProduct.brand,
             imageUrl: apiProduct.imageUrl,
           };
+        } else {
+          console.log('[Scan] Product not found in API.');
         }
       }
 
