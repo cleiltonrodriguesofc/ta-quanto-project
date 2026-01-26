@@ -24,6 +24,8 @@ import { SupermarketSelector } from '@/components/SupermarketSelector';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import { useTranslation } from 'react-i18next';
 
+let globalLastLoggedBarcode: string | null = null;
+
 export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -41,7 +43,10 @@ export default function RegisterScreen() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   useEffect(() => {
-    console.log('Register params:', params);
+    if (params.barcode && params.barcode !== globalLastLoggedBarcode) {
+      console.log('Register params:', params);
+      globalLastLoggedBarcode = params.barcode as string;
+    }
     if (params.barcode) setBarcode(params.barcode as string);
     if (params.productName) setProductName(params.productName as string);
     if (params.imageUrl) setImageUrl(params.imageUrl as string);

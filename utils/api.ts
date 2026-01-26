@@ -408,6 +408,55 @@ export const api = {
             throw new Error(`Avatar upload failed: ${error.message}`);
         }
     },
+
+    fetchProductFromCosmos: async (barcode: string): Promise<any> => {
+        const token = process.env.EXPO_PUBLIC_COSMOS_API_TOKEN;
+        if (!token) {
+            console.error('[API] Cosmos Token not found in environment');
+            return null;
+        }
+
+        try {
+            const response = await fetch(`https://api.cosmos.bluesoft.com.br/gtins/${barcode}.json`, {
+                headers: {
+                    'X-Cosmos-Token': token,
+                    'User-Agent': 'Cosmos-API-Request',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`[API] Cosmos Response for ${barcode}:`, JSON.stringify(data));
+
+                // Prioritize image sources
+                let finalImageUrl = data.thumbnail || '';
+
+                if (finalImageUrl) {
+                    console.log(`[API] Using Cosmos thumbnail for ${barcode}`);
+                } else if (data.brand && data.brand.picture) {
+                    finalImageUrl = data.brand.picture;
+                    console.log(`[API] Using brand picture for ${barcode}`);
+                } else {
+                    // Bluesoft CDN fallback - try common patterns
+                    finalImageUrl = `https://cdn-cosmos.bluesoft.com.br/products/${barcode}`;
+                    console.log(`[API] Using CDN fallback for ${barcode}`);
+                }
+
+                return {
+                    name: data.description,
+                    brand: data.brand ? data.brand.name : '',
+                    imageUrl: finalImageUrl || '',
+                    barcode: barcode,
+                    price: data.avg_price || 0
+                };
+            }
+            return null;
+        } catch (error) {
+            console.error('[API] Error calling Cosmos directly:', error);
+            return null;
+        }
+    },
 };
 
 export const fetchProductFromUPCitemdb = async (barcode: string) => {
@@ -461,8 +510,9 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
 
         let product = null;
 
-        // 2. Fetch from OpenFoodFacts
+        // 2. Fetch from OpenFoodFacts (Public)
         try {
+            console.log('[API] Searching in OpenFoodFacts...');
             const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
             const data = await response.json();
 
@@ -478,21 +528,41 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
             console.error('Error fetching from OpenFoodFacts:', error);
         }
 
-        // 3. Fallback to UPCitemdb if not found
+        // 3. Fallback to UPCitemdb if not found (Public)
         if (!product) {
             console.log('[API] Not found in OpenFoodFacts, trying UPCitemdb...');
             product = await fetchProductFromUPCitemdb(barcode);
             if (product) console.log('[API] Found in UPCitemdb');
         }
 
-        // 4. Save to Cache (Fire and Forget)
+        // 4. Fetch from Cosmos (Private / Limited Access - Fallback)
+        if (!product) {
+            try {
+                console.log('[API] Not found in public APIs, searching in Cosmos API...');
+                product = await api.fetchProductFromCosmos(barcode);
+                if (product) {
+                    console.log('[API] Found in Cosmos');
+                }
+            } catch (error) {
+                console.error('[API] Cosmos search failed:', error);
+            }
+        }
+
+        // 5. Save to Cache (Fire and Forget)
         if (product) {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { price, barcode: pBarcode, ...productMetadata } = product;
+
             if (USE_SUPABASE) {
-                supabase.from('products').upsert([{
-                    barcode,
-                    ...product,
+                const upsertData = {
+                    barcode: barcode,
+                    name: productMetadata.name,
+                    brand: productMetadata.brand,
+                    imageUrl: productMetadata.imageUrl,
                     createdAt: new Date().toISOString()
-                }]).then(({ error }) => {
+                };
+                console.log('[API] Caching product metadata:', JSON.stringify(upsertData));
+                supabase.from('products').upsert([upsertData]).then(({ error }) => {
                     if (error) console.error('[API] Failed to cache product in Supabase:', error);
                 });
             } else {
@@ -504,7 +574,7 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
                     },
                     body: JSON.stringify({
                         barcode,
-                        ...product
+                        ...productMetadata
                     })
                 }).catch(err => console.error('[API] Failed to cache product locally:', err));
             }
