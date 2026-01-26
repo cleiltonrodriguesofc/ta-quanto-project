@@ -8,8 +8,9 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3, MapPin } from 'lucide-react-native';
+import { Camera, Search, CirclePlus as PlusCircle, ChartBar as BarChart3 } from 'lucide-react-native';
 import { getStoredPrices } from '@/utils/storage';
+import { calculatePotentialSavings } from '@/utils/savings';
 import { PriceEntry } from '@/types/price';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
@@ -20,7 +21,6 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const [totalSavings, setTotalSavings] = useState(0);
   const [priceCount, setPriceCount] = useState(0);
-  const [locationCount, setLocationCount] = useState(0);
   const [recentPrices, setRecentPrices] = useState<PriceEntry[]>([]);
 
   useEffect(() => {
@@ -33,12 +33,10 @@ export default function HomeScreen() {
       const prices = await getStoredPrices();
       console.log(`[Home] Stats loaded: ${prices.length} prices`);
       setPriceCount(prices.length);
-      const pricesWithLocation = prices.filter(price => price.location);
-      setLocationCount(pricesWithLocation.length);
 
-      // Mock savings calculation
-      const mockSavings = prices.length * 2.5;
-      setTotalSavings(mockSavings);
+      // Real savings calculation
+      const calculatedSavings = calculatePotentialSavings(prices);
+      setTotalSavings(calculatedSavings);
 
       // Get 3 most recent prices
       const sortedPrices = [...prices].sort((a, b) =>
@@ -113,12 +111,6 @@ export default function HomeScreen() {
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{priceCount}</Text>
           <Text style={styles.statLabel}>{t('prices_shared')}</Text>
-        </View>
-        <View style={styles.statDivider} />
-        <View style={styles.statItem}>
-          <MapPin size={16} color="#6B7280" />
-          <Text style={styles.statNumber}>{locationCount}</Text>
-          <Text style={styles.statLabel}>{t('with_location')}</Text>
         </View>
       </View>
 

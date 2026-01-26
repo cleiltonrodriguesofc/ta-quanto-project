@@ -1,4 +1,8 @@
 import '@testing-library/jest-native/extend-expect';
+import { Alert } from 'react-native';
+
+// Spy on Alert to mock it safely
+jest.spyOn(Alert, 'alert').mockImplementation(() => { });
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -106,36 +110,10 @@ jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
 jest.mock('react-native/Libraries/EventEmitter/RCTNativeAppEventEmitter');
 
 // Mock Assertions
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-  return {
-    ...RN,
-    Alert: {
-      ...RN.Alert,
-      alert: jest.fn(),
-    },
-    NativeEventEmitter: jest.fn(() => ({
-      addListener: jest.fn(() => ({ remove: jest.fn() })),
-      removeListeners: jest.fn(),
-    })),
-    Keyboard: {
-      addListener: jest.fn(() => ({ remove: jest.fn() })),
-      dismiss: jest.fn(),
-    },
-    // Mock deprecated/extracted modules to silence warnings
-    PushNotificationIOS: {
-      addEventListener: jest.fn(),
-      requestPermissions: jest.fn(() => Promise.resolve({})),
-      getInitialNotification: jest.fn(() => Promise.resolve(null)),
-    },
-    Clipboard: {
-      setString: jest.fn(),
-      getString: jest.fn(() => Promise.resolve('')),
-    },
-    ProgressBarAndroid: 'ProgressBarAndroid',
-    SafeAreaView: 'SafeAreaView',
-  };
-});
+// Mock Assertions
+// jest.mock('react-native' ...) block removed because it caused recursion.
+// Individual components are mocked via specific paths above/below.
+
 
 // Mock internal Keyboard module to ensure imports rely on this mock
 jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => ({
