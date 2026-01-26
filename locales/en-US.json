@@ -145,5 +145,12 @@
     "dark_mode": "Dark Mode",
     "notifications": "Notifications",
     "logout": "Log Out",
+    "searching_product": "Searching product... 🔍",
+    "product_found": "Yay! Product found! 🎉",
+    "checking_prices": "Checking prices... 💸",
+    "price_not_found_supermarket": "Bummer! No price here yet 😕",
+    "be_the_first": "Be the first to register! 🏆",
+    "product_registered": "Product registered! ✅",
+    "how_much_is_it": "How much is it there? 💰",
     "logout_confirm": "Are you sure you want to log out?"
 }

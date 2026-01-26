@@ -6,105 +6,187 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
-  Image,
+  ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Flashlight, X } from 'lucide-react-native';
-import { getProductByBarcode } from '@/utils/storage';
+import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
+import { PriceEntry } from '@/types/price';
+import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
 import { fetchProductFromOpenFoodFacts } from '@/utils/api';
 import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
 import { useTranslation } from 'react-i18next';
+import { useSupermarketSession } from '@/context/SupermarketContext';
 
 const { width } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
+
+type ScanStatus = 'idle' | 'searching' | 'found' | 'checking_price' | 'price_not_found' | 'success';
 
 export default function ScanScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
-  console.log(`[Scan] Permission status: ${permission?.status}`);
-
-  useEffect(() => {
-    console.log('[Scan] Camera mounted');
-  }, []);
+  const { selectedSupermarket } = useSupermarketSession();
 
   const [scanned, setScanned] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [status, setStatus] = useState<ScanStatus>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+  const [fadeAnim] = useState(new Animated.Value(0));
 
-  if (!permission) {
-    return <View style={styles.container} />;
-  }
-
-  if (!permission.granted) {
-    return (
-      <View style={styles.permissionContainer}>
-        <View style={styles.permissionCard}>
-          <Text style={styles.permissionTitle}>{t('camera_permission')}</Text>
-          <Text style={styles.permissionDescription}>
-            {t('camera_permission')}
-          </Text>
-          <TouchableOpacity
-            style={styles.permissionButton}
-            onPress={requestPermission}
-          >
-            <Text style={styles.permissionButtonText}>{t('grant_permission')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (status !== 'idle') {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [status]);
 
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned) return;
     setScanned(true);
 
     try {
-      console.log(`[Scan] Processing barcode: ${data}`);
+      // Step 1: Searching
+      setStatus('searching');
+      setStatusMessage(t('searching_product'));
 
-      // 1. Check local DB
+      // Artificial delay for UX (to allow user to read the message)
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       const existingProduct = await getProductByBarcode(data);
+      let productData: Partial<PriceEntry> | null = existingProduct;
 
-      if (existingProduct) {
-        console.log('[Scan] Found in local DB:', existingProduct.productName);
-        // Found locally -> Redirect to Product Details
-        router.push(`/product/${data}`);
-        setTimeout(() => setScanned(false), 1000);
-      } else {
-        console.log('[Scan] Not found locally. Checking API...');
-        // 2. Check Public API
+      if (!existingProduct) {
+        // Try API
         const apiProduct = await fetchProductFromOpenFoodFacts(data);
-
         if (apiProduct) {
-          console.log('[Scan] Found in API:', apiProduct.name);
-          console.log('[Scan] API Image URL:', apiProduct.imageUrl);
+          productData = {
+            barcode: data,
+            productName: apiProduct.name,
+            brand: apiProduct.brand,
+            imageUrl: apiProduct.imageUrl,
+          };
+        }
+      }
 
-          // Found in API -> Redirect to Register with pre-filled data
+      const foundProductStart = async (prod: any) => {
+        // Step 2: Found
+        setStatus('found');
+        setStatusMessage(t('product_found'));
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        // Step 3: Checking Prices
+        setStatus('checking_price');
+        setStatusMessage(t('checking_prices'));
+
+        const prices = await getPricesByBarcode(data);
+        // Check if price exists for CURRENT supermarket
+        const hasPriceInCurrentSupermarket = selectedSupermarket && prices.some(p => p.supermarket === selectedSupermarket);
+
+        if (hasPriceInCurrentSupermarket) {
+          // Success - Redirect to Product Details
+          setStatus('success');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          router.push(`/product/${data}`);
+        } else {
+          // Price not found for this supermarket
+          setStatus('price_not_found');
+          setStatusMessage(t('price_not_found_supermarket'));
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
+          // Redirect to Register
           router.push({
             pathname: '/register',
             params: {
               barcode: data,
-              productName: apiProduct.name,
-              imageUrl: apiProduct.imageUrl,
-              brand: apiProduct.brand
+              productName: prod?.productName,
+              imageUrl: prod?.imageUrl,
+              brand: prod?.brand
             }
           });
-        } else {
-          console.log('[Scan] Not found in API. Redirecting to manual entry.');
-          // 3. Not found anywhere -> Redirect to Register (Manual)
-          router.push({
-            pathname: '/register',
-            params: { barcode: data }
-          });
         }
-        setTimeout(() => setScanned(false), 1000);
+      };
+
+      if (productData) {
+        await foundProductStart(productData);
+      } else {
+        // Product totally unknown
+        setStatus('price_not_found');
+        setStatusMessage(t('be_the_first'));
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        router.push({
+          pathname: '/register',
+          params: { barcode: data }
+        });
       }
+
     } catch (error) {
       console.error('Error processing barcode:', error);
       Alert.alert(t('error'), t('error'));
       setScanned(false);
+      setStatus('idle');
+    } finally {
+      if (status === 'success' || status === 'price_not_found') {
+        setTimeout(() => {
+          setScanned(false);
+          setStatus('idle');
+        }, 1000);
+      }
     }
   };
+
+  const renderStatusOverlay = () => {
+    if (status === 'idle') return null;
+
+    let icon = <ActivityIndicator size="large" color="#FFFFFF" />;
+    let color = 'rgba(0,0,0,0.8)';
+
+    if (status === 'found') {
+      icon = <CheckCircle2 size={48} color="#10B981" />;
+      color = 'rgba(16, 185, 129, 0.9)';
+    } else if (status === 'price_not_found') {
+      icon = <AlertCircle size={48} color="#F59E0B" />;
+      color = 'rgba(245, 158, 11, 0.9)';
+    } else if (status === 'searching') {
+      icon = <Search size={48} color="#3A7DE8" />;
+      color = 'rgba(58, 125, 232, 0.9)';
+    }
+
+    return (
+      <Animated.View style={[styles.statusOverlay, { opacity: fadeAnim, backgroundColor: color }]}>
+        {icon}
+        <Text style={styles.statusText}>{statusMessage}</Text>
+      </Animated.View>
+    );
+  };
+
+  if (!permission) return <View style={styles.container} />;
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.permissionContainer}>
+        <View style={styles.permissionCard}>
+          <Text style={styles.permissionTitle}>{t('camera_permission')}</Text>
+          <Text style={styles.permissionDescription}>{t('camera_permission')}</Text>
+          <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
+            <Text style={styles.permissionButtonText}>{t('grant_permission')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -118,41 +200,31 @@ export default function ScanScreen() {
         }}
       />
 
+      {renderStatusOverlay()}
+
       <View style={styles.overlay}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => router.back()}
-          >
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.title}>{t('scan_barcode')}</Text>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => setFlash(!flash)}
-          >
+          <TouchableOpacity style={styles.iconButton} onPress={() => setFlash(!flash)}>
             <Flashlight size={24} color={flash ? '#F59E0B' : '#FFFFFF'} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.scanArea}>
           <View style={styles.scanFrame} />
-          <Text style={styles.scanText}>
-            {t('align_barcode')}
-          </Text>
+          <Text style={styles.scanHint}>{t('align_barcode')}</Text>
         </View>
 
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.manualButton}
-            onPress={() => router.push('/register')}
-          >
+          <TouchableOpacity style={styles.manualButton} onPress={() => router.push('/register')}>
             <Text style={styles.manualButtonText}>{t('enter_manually')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Force Supermarket Selection if not set */}
       <SupermarketSessionModal />
     </View>
   );
@@ -246,7 +318,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'transparent',
   },
-  scanText: {
+  scanHint: {
     color: '#FFFFFF',
     marginTop: 20,
     fontSize: 16,
@@ -273,5 +345,18 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  statusOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  statusText: {
+    marginTop: 20,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
   },
 });

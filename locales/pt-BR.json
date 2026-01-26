@@ -145,5 +145,12 @@
     "dark_mode": "Modo Escuro",
     "notifications": "Notificações",
     "logout": "Sair",
+    "searching_product": "Buscando produto... 🔍",
+    "product_found": "Oba! Produto encontrado! 🎉",
+    "checking_prices": "Verificando preços... 💸",
+    "price_not_found_supermarket": "Poxa! Sem preço nesse mercado 😕",
+    "be_the_first": "Seja o primeiro a registrar! 🏆",
+    "product_registered": "Produto registrado! ✅",
+    "how_much_is_it": "Tá quanto aí? 💰",
     "logout_confirm": "Tem certeza que deseja sair?"
 }
