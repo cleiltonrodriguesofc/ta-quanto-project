@@ -116,7 +116,7 @@ describe('RegisterScreen', () => {
     await waitFor(() => {
       expect(mockAlert).toHaveBeenCalledWith(
         'success',
-        'price_added',
+        'product_registered',
         expect.any(Array)
       );
     });

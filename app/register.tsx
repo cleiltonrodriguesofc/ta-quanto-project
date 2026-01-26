@@ -118,7 +118,7 @@ export default function RegisterScreen() {
         } : undefined,
       });
 
-      Alert.alert(t('success'), t('price_added'), [
+      Alert.alert(t('success'), t('product_registered'), [
         {
           text: 'OK',
           onPress: () => router.replace(`/product/${barcode}`)
@@ -175,7 +175,7 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>{t('price')} (R$) *</Text>
+            <Text style={styles.label}>{t('how_much_is_it')} *</Text>
             <TextInput
               style={styles.input}
               value={price}
