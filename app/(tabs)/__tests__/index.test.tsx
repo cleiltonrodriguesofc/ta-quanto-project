@@ -77,20 +77,13 @@ describe('HomeScreen', () => {
     const { getByText } = render(<HomeScreen />);
 
     await waitFor(() => {
-      // Savings: 2 * 2.50 = 5.00
-      expect(getByText('R$5.00')).toBeTruthy();
+      // Savings: 0 (since each product has only 1 price)
+      expect(getByText('R$0.00')).toBeTruthy();
       expect(getByText('potential_savings')).toBeTruthy();
 
       // Prices shared count: 2
-      // Component renders separate Text for count and label
-      // We might have multiple '2's in the screen if prices have '2' in them?
-      // No, mock data prices are 4.99 and 2.50.
       expect(getByText('2')).toBeTruthy();
       expect(getByText('prices_shared')).toBeTruthy();
-
-      // Locations: 1
-      expect(getByText('1')).toBeTruthy();
-      expect(getByText('with_location')).toBeTruthy();
     });
   });
 
@@ -125,28 +118,34 @@ describe('HomeScreen', () => {
     await waitFor(() => {
       // Should show default values when storage fails
       expect(getByText('R$0.00')).toBeTruthy();
-      // '0' might appear multiple times (prices shared, location count)
+      // '0' appears for prices shared
       const zeros = getAllByText('0');
-      expect(zeros.length).toBeGreaterThanOrEqual(2);
+      expect(zeros.length).toBeGreaterThanOrEqual(1);
     });
 
     spy.mockRestore();
   });
 
-  it('should calculate statistics correctly for single price', async () => {
-    const singlePrice: PriceEntry[] = [mockPrices[0]];
-    mockStorage.getStoredPrices.mockResolvedValue(singlePrice);
+  it('should calculate potential savings correctly', async () => {
+    // Two prices for the same product to generate savings
+    const prices: PriceEntry[] = [
+      mockPrices[0], // 4.99
+      {
+        ...mockPrices[0],
+        id: '3',
+        price: 3.50
+      }
+    ];
+    // Savings: 4.99 - 3.50 = 1.49
+    mockStorage.getStoredPrices.mockResolvedValue(prices);
 
     const { getByText, getAllByText } = render(<HomeScreen />);
 
     await waitFor(() => {
-      // Savings: 1 * 2.50 = 2.50
-      expect(getByText('R$2.50')).toBeTruthy();
+      expect(getByText('R$1.49')).toBeTruthy();
 
-      // Prices shared: 1
-      // Location: 1
-      const ones = getAllByText('1');
-      expect(ones.length).toBeGreaterThanOrEqual(2);
+      // Prices shared: 2
+      expect(getByText('2')).toBeTruthy();
     });
   });
 });
