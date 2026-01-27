@@ -41,16 +41,18 @@ const formatPriceForSupabase = (price: PriceEntry) => {
     if (!uuidRegex.test(id)) {
         // Generate deterministic UUID for legacy IDs
         finalId = stringToUuid(id);
-        // console.log(`[API] Converted legacy ID ${id} -> ${finalId}`);
     }
 
     return {
-        ...rest,
+        barcode: price.barcode,
+        price: price.price,
+        supermarket: price.supermarket,
+        timestamp: price.timestamp,
+        productName: price.productName,
+        brand: price.brand || null,
+        imageUrl: price.imageUrl || null,
         id: finalId,
         userId: userId || null,
-        // latitude: location?.latitude,
-        // longitude: location?.longitude,
-        // address: location?.address,
     };
 };
 
@@ -188,18 +190,56 @@ export const api = {
             // We only check the LAST entry. If the price hasn't changed, we don't need a new record.
             const { data: latest } = await supabase
                 .from('prices')
-                .select('price')
+                .select('price, timestamp')
                 .eq('barcode', price.barcode)
                 .eq('supermarket', price.supermarket)
                 .order('timestamp', { ascending: false })
                 .limit(1)
-                .single();
+                .maybeSingle();
 
             if (latest && latest.price === price.price) {
-                console.log('[API] Skipping duplicate price submission');
-                return;
+                // If it's the exact same price, check the time. 
+                // If it was registered less than 1 hour ago, skip to avoid spam.
+                // Otherwise, allow it as a "confirmation" check.
+                const lastTimestamp = latest.timestamp ? new Date(latest.timestamp).getTime() : 0;
+                const now = new Date().getTime();
+                const oneHour = 60 * 60 * 1000;
+
+                if (now - lastTimestamp < oneHour) {
+                    console.log('[API] Skipping duplicate price submission (less than 1h ago)');
+                    return;
+                }
+                console.log('[API] Allowing "Price Confirmation" for same value');
             }
 
+            // 1. Sync Product Metadata (Name, Brand, Image)
+            const productData = {
+                barcode: price.barcode,
+                name: price.productName,
+                brand: price.brand,
+                imageUrl: price.imageUrl,
+                createdAt: new Date().toISOString()
+            };
+
+            console.log('[API] Syncing product metadata for registration:', price.barcode, productData.name);
+            try {
+                const { error: productError } = await supabase
+                    .from('products')
+                    .upsert([productData], { onConflict: 'barcode' });
+
+                if (productError) {
+                    if (productError.code === '42501') {
+                        console.warn('[API] RLS Restricted: Product metadata not updated (read-only for this user)');
+                    } else {
+                        console.error('[API] Failed to sync product metadata:', productError);
+                    }
+                }
+            } catch (err) {
+                console.error('[API] Unexpected error syncing metadata:', err);
+                // Continue regardless of metadata sync
+            }
+
+            // 2. Save Price Entry
             const { error } = await supabase.from('prices').upsert([formatPriceForSupabase(price)]);
             if (error) throw new Error(`Supabase error: ${error.message}`);
         } else {
