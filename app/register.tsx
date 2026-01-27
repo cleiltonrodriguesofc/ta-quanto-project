@@ -147,7 +147,7 @@ export default function RegisterScreen() {
       style={styles.container}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/add')} style={styles.backButton}>
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('register_price')}</Text>

@@ -10,8 +10,9 @@ import {
   Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
+import { useCallback } from 'react';
 import { PriceEntry } from '@/types/price';
 import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
 import { fetchProductFromOpenFoodFacts } from '@/utils/api';
@@ -35,6 +36,15 @@ export default function ScanScreen() {
   const [status, setStatus] = useState<ScanStatus>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [fadeAnim] = useState(new Animated.Value(0));
+
+  // Reset state when screen focus is regained
+  useFocusEffect(
+    useCallback(() => {
+      setStatus('idle');
+      setScanned(false);
+      setStatusMessage('');
+    }, [])
+  );
 
   useEffect(() => {
     if (status !== 'idle') {
@@ -222,7 +232,7 @@ export default function ScanScreen() {
 
       <View style={styles.overlay}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => router.replace('/(tabs)/add')}>
             <ArrowLeft size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.title}>{t('scan_barcode')}</Text>
