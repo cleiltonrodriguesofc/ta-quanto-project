@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator,
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { hydrateLocalCache } from '@/utils/syncService';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -22,6 +23,11 @@ export default function LoginScreen() {
         try {
             setLoading(true);
             await signInWithEmail(email, password);
+
+            // Start hydration in background (not blocking redirect)
+            // This ensures the user lands on the dashboard immediately.
+            hydrateLocalCache().catch(err => console.warn('[Login] Sync error:', err));
+
             router.replace('/(tabs)');
         } catch (error: any) {
             Alert.alert('Login Error', error.message);

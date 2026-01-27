@@ -6,7 +6,9 @@ import { supabase } from './supabase';
 
 const STORAGE_KEY = 'taquanto_prices';
 const USER_KEY = 'taquanto_user';
-const SYNC_KEY = 'taquanto_synced';
+const SYNC_KEY = 'taquanto_synced_at';
+const PRODUCTS_KEY = 'taquanto_products';
+const SUPERMARKETS_KEY = 'taquanto_supermarkets';
 
 // --- Local Storage Helpers (Legacy/Backup) ---
 
@@ -17,6 +19,42 @@ const getLocalPrices = async (): Promise<PriceEntry[]> => {
   } catch (error) {
     console.error('Error getting local prices:', error);
     return [];
+  }
+};
+
+export const getLocalProducts = async (): Promise<any[]> => {
+  try {
+    const storedData = await AsyncStorage.getItem(PRODUCTS_KEY);
+    return storedData ? JSON.parse(storedData) : [];
+  } catch (error) {
+    console.error('Error getting local products:', error);
+    return [];
+  }
+};
+
+export const getLocalSupermarkets = async (): Promise<any[]> => {
+  try {
+    const storedData = await AsyncStorage.getItem(SUPERMARKETS_KEY);
+    return storedData ? JSON.parse(storedData) : [];
+  } catch (error) {
+    console.error('Error getting local supermarkets:', error);
+    return [];
+  }
+};
+
+export const saveLocalProducts = async (products: any[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+  } catch (error) {
+    console.error('Error saving local products:', error);
+  }
+};
+
+export const saveLocalSupermarkets = async (supermarkets: any[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(SUPERMARKETS_KEY, JSON.stringify(supermarkets));
+  } catch (error) {
+    console.error('Error saving local supermarkets:', error);
   }
 };
 
@@ -42,7 +80,7 @@ export const syncLocalData = async (): Promise<{ success: boolean; message: stri
       await api.saveUser(userProfile);
     }
 
-    await AsyncStorage.setItem(SYNC_KEY, 'true');
+    await AsyncStorage.setItem(SYNC_KEY, new Date().toISOString());
     return { success: true, message: `Synced ${localPrices.length} prices successfully.` };
   } catch (error: any) {
     console.error('Sync error:', error);
@@ -54,14 +92,33 @@ export const syncLocalData = async (): Promise<{ success: boolean; message: stri
 
 export const getStoredPrices = async (): Promise<PriceEntry[]> => {
   try {
-    // Try API first
+    // 0. Always load local first for speed (Instant)
+    const localPrices = await getLocalPrices();
+
+    // 1. Refresh from API in background (Non-blocking)
+    const refresh = async () => {
+      const isConnected = await checkApiConnection();
+      if (isConnected) {
+        try {
+          const remotePrices = await api.getPrices();
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remotePrices));
+        } catch (e) { }
+      }
+    };
+    refresh();
+
+    // 2. Return cache immediately if available
+    if (localPrices.length > 0) {
+      return localPrices;
+    }
+
+    // 3. Only await if cache is empty
     const isConnected = await checkApiConnection();
     if (isConnected) {
       return await api.getPrices();
     }
-    // Fallback to local if offline (optional, but good for UX)
-    console.warn('Offline: Fetching from local storage');
-    return await getLocalPrices();
+
+    return [];
   } catch (error) {
     console.error('Error getting prices:', error);
     return [];
@@ -171,7 +228,7 @@ export const saveUserProfile = async (profile: UserProfile): Promise<void> => {
 
 export const clearAllData = async (): Promise<void> => {
   try {
-    await AsyncStorage.multiRemove([STORAGE_KEY, USER_KEY, SYNC_KEY]);
+    await AsyncStorage.multiRemove([STORAGE_KEY, USER_KEY, SYNC_KEY, PRODUCTS_KEY, SUPERMARKETS_KEY]);
   } catch (error) {
     console.error('Error clearing all data:', error);
     throw error;

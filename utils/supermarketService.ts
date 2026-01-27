@@ -4,20 +4,30 @@ import { PriceEntry } from '@/types/price';
 
 export const getSupermarkets = async (): Promise<Supermarket[]> => {
     try {
-        const { data, error } = await supabase
-            .from('supermarkets')
-            .select('*')
-            .order('name', { ascending: true });
+        // 1. Get from Local Cache first (Instant)
+        const { getLocalSupermarkets, saveLocalSupermarkets } = await import('./storage');
+        const cachedSupermarkets = await getLocalSupermarkets();
 
-        if (error) {
-            console.error('Error fetching supermarkets:', error);
-            return [];
+        // 2. Background Refresh
+        const refresh = async () => {
+            try {
+                const { data, error } = await supabase.from('supermarkets').select('*').order('name', { ascending: true });
+                if (!error && data) await saveLocalSupermarkets(data);
+            } catch (e) { }
+        };
+        refresh();
+
+        if (cachedSupermarkets.length > 0) {
+            return cachedSupermarkets;
         }
 
+        // 3. First time fallback (wait once)
+        const { data } = await supabase.from('supermarkets').select('*').order('name', { ascending: true });
         return data || [];
     } catch (error) {
-        console.error('Unexpected error fetching supermarkets:', error);
-        return [];
+        console.error('Unexpected error in getSupermarkets:', error);
+        const { getLocalSupermarkets } = await import('./storage');
+        return await getLocalSupermarkets();
     }
 };
 
