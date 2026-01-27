@@ -12,8 +12,11 @@ jest.mock('../supabase', () => ({
                     eq: jest.fn(() => ({
                         order: jest.fn(() => ({
                             limit: jest.fn(() => ({
-                                single: jest.fn().mockResolvedValue({
-                                    data: { price: 10.00 }, // Mock existing price
+                                maybeSingle: jest.fn().mockResolvedValue({
+                                    data: {
+                                        price: 10.00,
+                                        timestamp: new Date().toISOString()
+                                    },
                                     error: null
                                 }),
                             })),
