@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,7 @@ export default function RegisterScreen() {
   const params = useLocalSearchParams();
   const { t } = useTranslation();
   const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
+  const hasInitialized = useRef(false);
 
   const [productName, setProductName] = useState('');
   const [price, setPrice] = useState('');
@@ -48,13 +49,16 @@ export default function RegisterScreen() {
       globalLastLoggedBarcode = params.barcode as string;
     }
 
-    // Only initialize fields if they are currently empty.
-    // This allows the initial params to populate the form, 
-    // but prevents them from overwriting manual user edits on re-renders.
-    if (params.barcode && !barcode) setBarcode(params.barcode as string);
-    if (params.productName && !productName) setProductName(params.productName as string);
-    if (params.imageUrl && !imageUrl) setImageUrl(params.imageUrl as string);
-    if (params.brand && !brand) setBrand(params.brand as string);
+    // Only initialize fields ONCE when the screen opens with target params.
+    // This prevents them from "snapping back" if the user clears the field later.
+    if (!hasInitialized.current && params.barcode) {
+      if (params.barcode) setBarcode(params.barcode as string);
+      if (params.productName) setProductName(params.productName as string);
+      if (params.imageUrl) setImageUrl(params.imageUrl as string);
+      if (params.brand) setBrand(params.brand as string);
+
+      hasInitialized.current = true;
+    }
 
     // Initialize supermarket from global session if available
     if (selectedSupermarket) {
