@@ -216,22 +216,6 @@ export default function RegisterScreen() {
             />
           </View>
 
-          <View style={styles.locationSection}>
-            <TouchableOpacity
-              style={[styles.locationButton, location && styles.locationButtonActive]}
-              onPress={handleGetLocation}
-              disabled={isLoadingLocation}
-            >
-              {isLoadingLocation ? (
-                <ActivityIndicator size="small" color="#3A7DE8" />
-              ) : (
-                <MapPin size={20} color={location ? '#10B981' : '#6B7280'} />
-              )}
-              <Text style={[styles.locationButtonText, location && styles.locationButtonTextActive]}>
-                {location ? t('location_added') : t('add_location')}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
           <TouchableOpacity
             style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}

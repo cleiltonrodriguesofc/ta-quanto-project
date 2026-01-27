@@ -122,32 +122,34 @@ describe('RegisterScreen', () => {
     });
   });
 
-  it('should handle location addition', async () => {
-    const mockLocationData = {
-      coords: {
-        latitude: -23.5505,
-        longitude: -46.6333,
-      },
-    };
-    mockExpoLocation.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' } as any);
-    mockExpoLocation.getCurrentPositionAsync.mockResolvedValue(mockLocationData as any);
-
-    const { getByText } = render(
-      <SupermarketProvider>
-        <RegisterScreen />
-      </SupermarketProvider>
-    );
-
-    fireEvent.press(getByText('add_location'));
-
-    await waitFor(() => {
-      expect(mockExpoLocation.getCurrentPositionAsync).toHaveBeenCalled();
+  /*
+    it('should handle location addition', async () => {
+      const mockLocationData = {
+        coords: {
+          latitude: -23.5505,
+          longitude: -46.6333,
+        },
+      };
+      mockExpoLocation.requestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' } as any);
+      mockExpoLocation.getCurrentPositionAsync.mockResolvedValue(mockLocationData as any);
+  
+      const { getByText } = render(
+        <SupermarketProvider>
+          <RegisterScreen />
+        </SupermarketProvider>
+      );
+  
+      fireEvent.press(getByText('add_location'));
+  
+      await waitFor(() => {
+        expect(mockExpoLocation.getCurrentPositionAsync).toHaveBeenCalled();
+      });
+  
+      await waitFor(() => {
+        expect(getByText('location_added')).toBeTruthy();
+      });
     });
-
-    await waitFor(() => {
-      expect(getByText('location_added')).toBeTruthy();
-    });
-  });
+  */
 
   it('should handle save error', async () => {
     mockStorage.savePriceEntry.mockRejectedValue(new Error('Save failed'));
