@@ -13,7 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Save, MapPin, Camera } from 'lucide-react-native';
+import { ArrowLeft, Save, Camera, MapPin as _MapPin } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import {
   launchCameraAsync,
@@ -41,7 +41,7 @@ export default function RegisterScreen() {
   const [brand, setBrand] = useState('');
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [_isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   useEffect(() => {
     if (params.barcode && params.barcode !== globalLastLoggedBarcode) {
@@ -66,7 +66,7 @@ export default function RegisterScreen() {
     }
   }, [params, selectedSupermarket]);
 
-  const handleGetLocation = async () => {
+  const _handleGetLocation = async () => {
     setIsLoadingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();

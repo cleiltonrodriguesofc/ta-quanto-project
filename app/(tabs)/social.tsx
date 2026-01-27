@@ -17,7 +17,7 @@ export default function SocialScreen() {
         if (!isLoading && !user) {
             router.replace('/auth/login');
         }
-    }, [user, isLoading]);
+    }, [user, isLoading, router]);
 
     if (isLoading || !user) return null;
 
