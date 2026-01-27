@@ -47,10 +47,14 @@ export default function RegisterScreen() {
       console.log('Register params:', params);
       globalLastLoggedBarcode = params.barcode as string;
     }
-    if (params.barcode) setBarcode(params.barcode as string);
-    if (params.productName) setProductName(params.productName as string);
-    if (params.imageUrl) setImageUrl(params.imageUrl as string);
-    if (params.brand) setBrand(params.brand as string);
+
+    // Only initialize fields if they are currently empty.
+    // This allows the initial params to populate the form, 
+    // but prevents them from overwriting manual user edits on re-renders.
+    if (params.barcode && !barcode) setBarcode(params.barcode as string);
+    if (params.productName && !productName) setProductName(params.productName as string);
+    if (params.imageUrl && !imageUrl) setImageUrl(params.imageUrl as string);
+    if (params.brand && !brand) setBrand(params.brand as string);
 
     // Initialize supermarket from global session if available
     if (selectedSupermarket) {
