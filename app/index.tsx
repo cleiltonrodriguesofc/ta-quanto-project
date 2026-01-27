@@ -1,12 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
-import { makeRedirectUri } from 'expo-auth-session';
-import { supabase } from '@/utils/supabase';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -14,7 +11,6 @@ export default function LandingScreen() {
     console.log('[DEBUG] Landing Screen Rendered');
     const { session, isLoading } = useAuth();
     const router = useRouter();
-    const [authLoading, setAuthLoading] = useState(false);
 
     if (isLoading) {
         return (
@@ -44,7 +40,6 @@ export default function LandingScreen() {
                 <TouchableOpacity
                     style={styles.emailButton}
                     onPress={() => router.push('/auth/login')}
-                    disabled={authLoading}
                 >
                     <Ionicons name="mail" size={24} color="#FFFFFF" style={styles.buttonIcon} />
                     <Text style={styles.emailButtonText}>Entrar com Email</Text>
@@ -53,7 +48,6 @@ export default function LandingScreen() {
                 <TouchableOpacity
                     style={styles.createAccountButton}
                     onPress={() => router.push('/auth/login')} // Register often goes to login page first or same flow
-                    disabled={authLoading}
                 >
                     <Text style={styles.createAccountText}>Criar uma conta</Text>
                 </TouchableOpacity>

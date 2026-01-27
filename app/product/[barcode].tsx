@@ -10,7 +10,7 @@ import {
     Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp, Check, X, AlertCircle } from 'lucide-react-native';
+import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp, Check, X } from 'lucide-react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import { getPricesByBarcode, savePriceEntry } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
@@ -19,6 +19,7 @@ import { formatLocationDisplay } from '@/utils/location';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/AuthContext';
+import { useCallback } from 'react';
 
 export default function ProductDetailsScreen() {
     useKeepAwake();
@@ -35,13 +36,7 @@ export default function ProductDetailsScreen() {
         imageUrl?: string;
     } | null>(null);
 
-    useEffect(() => {
-        if (barcode) {
-            loadPrices();
-        }
-    }, [barcode]);
-
-    const loadPrices = async () => {
+    const loadPrices = useCallback(async () => {
         setLoading(true);
         try {
             const fetchedPrices = await getPricesByBarcode(barcode);
@@ -62,7 +57,13 @@ export default function ProductDetailsScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [barcode]);
+
+    useEffect(() => {
+        if (barcode) {
+            loadPrices();
+        }
+    }, [barcode, loadPrices]);
 
     // Filter to get only the latest price for each supermarket
     const getLatestPricesPerSupermarket = () => {

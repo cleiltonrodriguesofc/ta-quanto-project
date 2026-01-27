@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -27,11 +27,7 @@ export default function SupermarketDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    useEffect(() => {
-        loadData();
-    }, [id, name]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             let currentName = name;
 
@@ -53,7 +49,11 @@ export default function SupermarketDetailScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, name]);
+
+    useEffect(() => {
+        loadData();
+    }, [id, name, loadData]);
 
     const onRefresh = async () => {
         setRefreshing(true);

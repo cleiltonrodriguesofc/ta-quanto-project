@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,6 @@ import {
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
-import { useCallback } from 'react';
 import { PriceEntry } from '@/types/price';
 import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
 import { fetchProductFromOpenFoodFacts } from '@/utils/api';
@@ -60,7 +59,7 @@ export default function ScanScreen() {
         useNativeDriver: true,
       }).start();
     }
-  }, [status]);
+  }, [status, fadeAnim]);
 
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned) return;
