@@ -103,8 +103,9 @@ The app uses tab-based navigation with the following screens:
 
 ### Tech Stack
 - **Framework**: React Native with Expo SDK 53
+- **Backend/Auth**: Supabase (PostgreSQL)
 - **Navigation**: Expo Router with tab-based navigation
-- **Storage**: AsyncStorage for local data persistence
+- **Storage**: AsyncStorage (Local) + Supabase (Cloud)
 - **Camera**: Expo Camera for product scanning
 - **Location**: Expo Location for GPS functionality
 - **Icons**: Lucide React Native for consistent iconography
@@ -149,9 +150,18 @@ app/
 │   ├── add.tsx       # Add price options
 │   ├── routes.tsx    # Routes (placeholder)
 │   └── profile.tsx   # Profile (placeholder)
+├── auth/             # Authentication screens
+│   ├── login.tsx
+│   └── register.tsx
 ├── scan.tsx          # Camera scanning screen
 ├── register.tsx      # Price registration form
 └── _layout.tsx       # Root layout
+
+components/           # Reusable UI components
+
+context/
+├── AuthContext.tsx       # Supabase authentication
+└── SupermarketContext.tsx # Shopping basket & session
 
 types/
 └── price.ts          # TypeScript interfaces
@@ -188,14 +198,14 @@ utils/
 - ✅ Product scanning with camera
 - ✅ Manual price registration
 - ✅ Community price browsing
-- ✅ Local data storage
+- ✅ Smart Shopping Basket with Cloud Sync
+- ✅ User Authentication (Email/Password)
+- ✅ Local data storage (Offline-first)
 - ✅ GPS location capture
 - ✅ Search and filtering
 - ✅ Modern UI with blue theme
 
 ### Future Features (Post-MVP)
-- 🔄 User authentication and accounts
-- ☁️ Cloud storage and real-time sync
 - 🗺️ Route optimization for shopping
 - 👥 Social features (likes, comments)
 - 📊 Advanced analytics and insights
