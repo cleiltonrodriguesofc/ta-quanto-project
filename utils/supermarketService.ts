@@ -13,7 +13,7 @@ export const getSupermarkets = async (): Promise<Supermarket[]> => {
             try {
                 const { data, error } = await supabase.from('supermarkets').select('*').order('name', { ascending: true });
                 if (!error && data) await saveLocalSupermarkets(data);
-            } catch (e) { }
+            } catch { }
         };
         refresh();
 

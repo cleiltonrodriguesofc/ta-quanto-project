@@ -92,6 +92,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
         };
 
         syncWithRemote();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const setSelectedSupermarket = async (name: string) => {
@@ -197,24 +198,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
     };
 
-    // Re-implementing updateBasketQuantity properly
-    const updateBasketQuantityImpl = async (id: string, delta: number) => {
-        setBasket(prev => {
-            const newBasket = prev.map(item => {
-                if (item.id === id) {
-                    return { ...item, quantity: Math.max(1, item.quantity + delta) };
-                }
-                return item;
-            });
-            AsyncStorage.setItem(STORAGE_KEY_BASKET, JSON.stringify(newBasket));
 
-            const updated = newBasket.find(i => i.id === id);
-            if (user && updated) {
-                syncBasketItem(user.id, updated).catch(err => console.error('[Shop Sync] Update failed:', err));
-            }
-            return newBasket;
-        });
-    };
 
     const replaceBasket = async (items: BasketItem[]) => {
         setBasket(items);

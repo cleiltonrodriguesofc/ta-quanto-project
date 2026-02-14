@@ -102,7 +102,7 @@ export const getStoredPrices = async (): Promise<PriceEntry[]> => {
         try {
           const remotePrices = await api.getPrices();
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remotePrices));
-        } catch (e) { }
+        } catch { }
       }
     };
     refresh();

@@ -13,12 +13,11 @@ import { getStoredPrices } from '@/utils/storage';
 import { calculatePotentialSavings } from '@/utils/savings';
 import { PriceEntry } from '@/types/price';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/context/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { user } = useAuth();
+
   const [totalSavings, setTotalSavings] = useState(0);
   const [priceCount, setPriceCount] = useState(0);
   const [recentPrices, setRecentPrices] = useState<PriceEntry[]>([]);

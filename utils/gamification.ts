@@ -11,10 +11,8 @@ export const calculateLevel = (points: number): number => {
 
 export const calculateNextLevelProgress = (points: number) => {
     const level = calculateLevel(points);
-    const nextLevelThreshold = level * 50;
     const currentLevelThreshold = (level - 1) * 50;
     const progress = points - currentLevelThreshold;
-    const totalNeeded = 50;
 
     return {
         level,

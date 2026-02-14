@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 import RegisterScreen from '../register';
 import { SupermarketProvider } from '@/context/SupermarketContext';
 import * as storage from '@/utils/storage';
-import * as ExpoLocation from 'expo-location';
+
 
 // Mock dependencies
 jest.mock('@/utils/storage');
@@ -45,7 +45,7 @@ jest.mock('@/components/SupermarketSelector', () => {
 });
 
 const mockStorage = storage as jest.Mocked<typeof storage>;
-const mockExpoLocation = ExpoLocation as jest.Mocked<typeof ExpoLocation>;
+
 const mockAlert = Alert.alert as jest.Mock;
 
 describe('RegisterScreen', () => {

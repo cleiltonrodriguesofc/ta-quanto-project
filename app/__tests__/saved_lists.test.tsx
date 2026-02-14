@@ -5,7 +5,7 @@ import { Alert } from 'react-native';
 import ShopScreen from '../(tabs)/shop';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import * as basketService from '@/utils/basketService';
-import * as supermarketService from '@/utils/supermarketService';
+
 
 // Mock Dependencies
 jest.mock('expo-router', () => ({
