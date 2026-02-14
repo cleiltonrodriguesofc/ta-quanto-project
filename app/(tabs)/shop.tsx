@@ -317,11 +317,12 @@ export default function ShopScreen() {
     };
 
     const handleAddFromLookup = (product: PriceEntry) => {
-        const qty = lookupQuantities[product.barcode] || 1;
+        const productBarcode = product.barcode || '';
+        const qty = lookupQuantities[productBarcode] || 1;
         console.log('[Shop] Adding inline:', qty, 'for:', product.productName);
 
         addToBasket({
-            barcode: product.barcode,
+            barcode: productBarcode,
             productName: product.productName,
             price: product.price,
             quantity: qty,
@@ -333,7 +334,7 @@ export default function ShopScreen() {
         // Reset quantity for this barcode (cleanup)
         setLookupQuantities(prev => {
             const next = { ...prev };
-            delete next[product.barcode];
+            delete next[productBarcode];
             return next;
         });
 
@@ -548,7 +549,7 @@ export default function ShopScreen() {
                                         <View style={styles.quantityControlsSmall}>
                                             <TouchableOpacity
                                                 style={styles.qtyButtonSmall}
-                                                onPress={() => updateLookupQuantity(item.barcode, -1)}
+                                                onPress={() => updateLookupQuantity(item.barcode || '', -1)}
                                             >
                                                 <Minus size={16} color="#3A7DE8" />
                                             </TouchableOpacity>
@@ -557,24 +558,24 @@ export default function ShopScreen() {
                                                 <TextInput
                                                     style={styles.qtyInputSmall}
                                                     value={lookupEditValue}
-                                                    onChangeText={handleLookupQuantityEdit}
+                                                    onChangeText={(text) => handleLookupQuantityEdit(item.barcode || '', text)}
                                                     keyboardType="number-pad"
                                                     autoFocus
-                                                    onBlur={() => submitLookupEdit(item.barcode)}
-                                                    onSubmitEditing={() => submitLookupEdit(item.barcode)}
+                                                    onBlur={() => submitLookupEdit(item.barcode || '')}
+                                                    onSubmitEditing={() => submitLookupEdit(item.barcode || '')}
                                                 />
                                             ) : (
                                                 <TouchableOpacity onPress={() => {
-                                                    setEditingLookupBarcode(item.barcode);
-                                                    setLookupEditValue(getLookupQuantity(item.barcode).toString());
+                                                    setEditingLookupBarcode(item.barcode || '');
+                                                    setLookupEditValue(getLookupQuantity(item.barcode || '').toString());
                                                 }}>
-                                                    <Text style={styles.qtyTextSmall}>{getLookupQuantity(item.barcode)}</Text>
+                                                    <Text style={styles.qtyTextSmall}>{getLookupQuantity(item.barcode || '')}</Text>
                                                 </TouchableOpacity>
                                             )}
 
                                             <TouchableOpacity
                                                 style={styles.qtyButtonSmall}
-                                                onPress={() => updateLookupQuantity(item.barcode, 1)}
+                                                onPress={() => updateLookupQuantity(item.barcode || '', 1)}
                                             >
                                                 <Plus size={16} color="#3A7DE8" />
                                             </TouchableOpacity>
