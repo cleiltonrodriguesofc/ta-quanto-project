@@ -31,7 +31,7 @@ jest.mock('@/context/AuthContext', () => ({
 
 // Mock SupermarketSelector to behave like a TextInput for testing
 jest.mock('@/components/SupermarketSelector', () => {
-  const { TextInput } = require('react-native');
+  const { TextInput } = jest.requireActual('react-native');
   return {
     SupermarketSelector: ({ onSelect, selectedSupermarket }: any) => (
       <TextInput

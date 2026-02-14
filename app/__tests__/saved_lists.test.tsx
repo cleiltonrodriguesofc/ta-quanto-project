@@ -49,9 +49,11 @@ jest.mock('@/components/SupermarketSelector', () => ({
 // Mock Modal
 jest.mock('react-native', () => {
     const RN = jest.requireActual('react-native');
-    RN.Modal = ({ visible, children }: any) => {
+    const MockModal = ({ visible, children }: any) => {
         return visible ? children : null;
     };
+    MockModal.displayName = 'Modal';
+    RN.Modal = MockModal;
     return RN;
 });
 
