@@ -42,3 +42,4 @@ tsc_*.txt
 
 # sql scripts
 *.sql
+tests_output/
