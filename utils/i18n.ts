@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
 import ptBR from '../locales/pt-BR.json';
@@ -16,7 +16,7 @@ const initI18n = async () => {
     // Fallback to pt-BR if language not supported, or if it's just 'pt'
     const languageToUse = deviceLanguage.startsWith('en') ? 'en-US' : 'pt-BR';
 
-    await i18n
+    await i18next
         .use(initReactI18next)
         .init({
             resources,
@@ -30,4 +30,4 @@ const initI18n = async () => {
 
 initI18n();
 
-export default i18n;
+export default i18next;
