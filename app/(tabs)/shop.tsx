@@ -159,7 +159,14 @@ export default function ShopScreen() {
             setRenamingListId(null);
             setRenamingListName('');
             Alert.alert(t('success'), t('list_renamed', 'List renamed successfully'));
-            await loadSavedLists(); // Refresh list
+
+            // Force refresh of the list
+            await loadSavedLists();
+
+            // If the renamed list is currently active, update the title in the header too (though header shows 'Shop Mode' usually, but good for consistency)
+            if (activeSavedListId === renamingListId) {
+                setListName(renamingListName);
+            }
         } catch (error) {
             console.error('[Shop] Error renaming list:', error);
             Alert.alert(t('error'), t('error_renaming_list', 'Error renaming list'));
@@ -180,6 +187,15 @@ export default function ShopScreen() {
                         try {
                             await deleteSavedBasket(user.id, listId);
                             console.log('[Shop] List deleted:', listId);
+
+                            // If deleting the currently active list, clear the basket
+                            if (activeSavedListId === listId) {
+                                console.log('[Shop] Deleted active list, clearing basket session');
+                                clearBasket(); // Clears items and storage
+                                setActiveSavedListId(null);
+                                setListName('');
+                            }
+
                             await loadSavedLists(); // Refresh list
                         } catch (error) {
                             console.error('[Shop] Error deleting list:', error);
@@ -631,6 +647,22 @@ export default function ShopScreen() {
                     <View style={{ width: 24 }} />
                 </View>
 
+                {/* Create New List Button */}
+                <TouchableOpacity
+                    style={styles.createListButton}
+                    onPress={() => {
+                        console.log('[Shop] Create new list requested');
+                        setActiveSavedListId(null);
+                        setListName('');
+                        replaceBasket([]); // Start fresh
+                        setCurrentStep('BASKET');
+                    }}
+                >
+                    <PlusCircle size={20} color="#FFFFFF" />
+                    <Text style={styles.createListButtonText}>{t('create_new_list', 'Create New List')}</Text>
+                </TouchableOpacity>
+                {/* Create New List Button (End) */}
+
                 {isLoadingSaved ? (
                     <View style={styles.emptyContainer}>
                         <ActivityIndicator size="large" color="#3A7DE8" />
@@ -676,7 +708,8 @@ export default function ShopScreen() {
                             </View>
                         }
                     />
-                )}
+                )
+                }
                 {/* Edit List Modal */}
                 <Modal
                     visible={editListModalVisible}
@@ -721,7 +754,7 @@ export default function ShopScreen() {
                         </View>
                     </View>
                 </Modal>
-            </View>
+            </View >
         );
     }
 
@@ -1354,5 +1387,20 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    createListButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#3A7DE8',
+        margin: 16,
+        padding: 12,
+        borderRadius: 8,
+        gap: 8,
+    },
+    createListButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
 });
