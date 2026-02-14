@@ -13,7 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Save, Camera, Minus, Plus } from 'lucide-react-native';
+import { ArrowLeft, Save, Camera } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import {
   launchCameraAsync,
@@ -30,7 +30,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
-  const { selectedSupermarket, setSelectedSupermarket, isShopMode, addToBasket } = useSupermarketSession();
+  const { selectedSupermarket, setSelectedSupermarket, addToBasket } = useSupermarketSession();
   const hasInitialized = useRef(false);
 
   const [productName, setProductName] = useState('');
@@ -41,8 +41,6 @@ export default function RegisterScreen() {
   const [brand, setBrand] = useState('');
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-
-  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (params.barcode && params.barcode !== globalLastLoggedBarcode) {
@@ -116,31 +114,34 @@ export default function RegisterScreen() {
         } : undefined,
       });
 
-      if (isShopMode) {
+      const isFromBasket = params.fromBasket === 'true';
+
+      if (isFromBasket) {
         addToBasket({
           barcode,
           productName,
           price: priceValue,
-          quantity: quantity,
+          quantity: 1, // Default to 1 since we removed quantity input
           supermarket,
           imageUrl,
           timestamp: new Date().toISOString(),
         });
       }
 
-      Alert.alert(t('success'), isShopMode ? t('item_added_to_basket') : t('product_registered'), [
+      Alert.alert(t('success'), isFromBasket ? t('item_added_to_basket') : t('product_registered'), [
         {
-          text: isShopMode ? t('add_more') : 'OK',
+          text: isFromBasket ? t('add_more') : 'OK',
           onPress: () => {
-            console.log('[Register] User chose:', isShopMode ? 'Add More' : 'OK');
-            if (isShopMode) {
-              router.replace('/scan');
+            console.log('[Register] User chose:', isFromBasket ? 'Add More' : 'OK');
+            if (isFromBasket) {
+              // Pass fromBasket=true back to scan
+              router.replace('/scan?fromBasket=true');
             } else {
               router.replace(`/product/${barcode}`);
             }
           }
         },
-        ...(isShopMode ? [{
+        ...(isFromBasket ? [{
           text: t('view_basket'),
           onPress: () => {
             console.log('[Register] User chose: View Basket');
@@ -228,26 +229,8 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {isShopMode && (
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>{t('quantity')}</Text>
-              <View style={styles.quantityContainer}>
-                <TouchableOpacity
-                  style={styles.quantityButton}
-                  onPress={() => setQuantity(Math.max(1, quantity - 1))}
-                >
-                  <Minus size={24} color="#3A7DE8" />
-                </TouchableOpacity>
-                <Text style={styles.quantityText}>{quantity}</Text>
-                <TouchableOpacity
-                  style={styles.quantityButton}
-                  onPress={() => setQuantity(quantity + 1)}
-                >
-                  <Plus size={24} color="#3A7DE8" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+          {/* Quantity Section Removed as per request */}
+
 
 
           <TouchableOpacity

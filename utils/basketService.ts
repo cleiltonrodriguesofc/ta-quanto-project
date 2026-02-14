@@ -150,22 +150,51 @@ export const updateSavedBasket = async (
 };
 
 export const deleteSavedBasket = async (userId: string, basketId: string) => {
+    console.log('[BasketService] Attempting to delete basket:', basketId, 'for user:', userId);
+
     // 1. Delete items first to be safe
-    const { error: itemsError } = await supabase
+    const { error: itemsError, count: itemsCount } = await supabase
         .from('saved_basket_items')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('basket_id', basketId);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+        console.error('[BasketService] Error deleting items:', itemsError);
+        throw itemsError;
+    }
+    console.log('[BasketService] Deleted items count:', itemsCount);
 
     // 2. Delete basket
-    const { error: basketError } = await supabase
+    const { error: basketError, count: basketCount } = await supabase
         .from('saved_baskets')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', basketId)
         .eq('user_id', userId);
 
-    if (basketError) throw basketError;
+    if (basketError) {
+        console.error('[BasketService] Error deleting basket:', basketError);
+        throw basketError;
+    }
+    console.log('[BasketService] Deleted basket count:', basketCount);
+
+    if (basketCount === 0) {
+        // Debug: Check if basket exists AT ALL
+        const { data: debugBasket, error: debugError } = await supabase
+            .from('saved_baskets')
+            .select('*')
+            .eq('id', basketId)
+            .single();
+
+        if (debugBasket) {
+            console.warn('[BasketService] Basket exists but was not deleted. Owner mismatch?',
+                { basketOwner: debugBasket.user_id, requestUser: userId }
+            );
+        } else {
+            console.warn('[BasketService] Basket ID not found in database:', basketId);
+        }
+
+        console.warn('[BasketService] Warning: No basket was deleted. Check if userId matches or if basketId exists.');
+    }
 };
 
 export const renameSavedBasket = async (userId: string, basketId: string, newName: string) => {
