@@ -116,3 +116,45 @@ BEGIN
   RETURN json_build_object('success', true, 'id', v_new_basket_id);
 END;
 $$;
+
+-- 4. Secure RENAME Function
+CREATE OR REPLACE FUNCTION rename_basket(
+  p_basket_id uuid,
+  p_new_name text
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_user_id uuid;
+  v_updated_count int;
+BEGIN
+  v_user_id := auth.uid();
+
+  UPDATE public.saved_baskets
+  SET name = p_new_name
+  WHERE id = p_basket_id AND user_id = v_user_id;
+
+  GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+  IF v_updated_count > 0 THEN
+    RETURN json_build_object('success', true);
+  ELSE
+    RETURN json_build_object('success', false, 'error', 'Basket not found or permission denied');
+  END IF;
+END;
+$$;
+
+-- 5. GRANT PERMISSIONS (Just in case)
+GRANT EXECUTE ON FUNCTION delete_basket(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION update_basket_details(uuid, numeric, integer, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_basket(text, text, numeric, integer, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION rename_basket(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_basket(uuid) TO anon;
+GRANT EXECUTE ON FUNCTION update_basket_details(uuid, numeric, integer, jsonb) TO anon;
+GRANT EXECUTE ON FUNCTION create_basket(text, text, numeric, integer, jsonb) TO anon;
+GRANT EXECUTE ON FUNCTION rename_basket(uuid, text) TO anon;
+
+-- 6. FORCE REFRESH API CACHE
+NOTIFY pgrst, 'reload schema';

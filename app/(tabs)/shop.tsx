@@ -647,21 +647,7 @@ export default function ShopScreen() {
                     <View style={{ width: 24 }} />
                 </View>
 
-                {/* Create New List Button */}
-                <TouchableOpacity
-                    style={styles.createListButton}
-                    onPress={() => {
-                        console.log('[Shop] Create new list requested');
-                        setActiveSavedListId(null);
-                        setListName('');
-                        replaceBasket([]); // Start fresh
-                        setCurrentStep('BASKET');
-                    }}
-                >
-                    <PlusCircle size={20} color="#FFFFFF" />
-                    <Text style={styles.createListButtonText}>{t('create_new_list', 'Create New List')}</Text>
-                </TouchableOpacity>
-                {/* Create New List Button (End) */}
+
 
                 {isLoadingSaved ? (
                     <View style={styles.emptyContainer}>
@@ -754,7 +740,20 @@ export default function ShopScreen() {
                         </View>
                     </View>
                 </Modal>
-            </View >
+
+                <TouchableOpacity
+                    style={styles.fab}
+                    onPress={() => {
+                        console.log('[Shop] Create new list requested (FAB)');
+                        setActiveSavedListId(null);
+                        setListName('');
+                        replaceBasket([]); // Start fresh
+                        setCurrentStep('BASKET');
+                    }}
+                >
+                    <Plus size={32} color="#FFFFFF" />
+                </TouchableOpacity>
+            </View>
         );
     }
 

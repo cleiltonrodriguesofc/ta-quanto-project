@@ -167,11 +167,20 @@ export const deleteSavedBasket = async (userId: string, basketId: string) => {
 };
 
 export const renameSavedBasket = async (userId: string, basketId: string, newName: string) => {
-    const { error } = await supabase
-        .from('saved_baskets')
-        .update({ name: newName })
-        .eq('id', basketId)
-        .eq('user_id', userId);
+    const { data, error } = await supabase
+        .rpc('rename_basket', {
+            p_basket_id: basketId,
+            p_new_name: newName
+        });
 
-    if (error) throw error;
+    if (error) {
+        console.error('[BasketService] RPC Error renaming basket:', error);
+        throw error;
+    }
+
+    if (data && !data.success) {
+        throw new Error(data.error || 'Failed to rename basket via RPC');
+    }
+
+    console.log('[BasketService] Rename successful:', basketId, newName);
 };
