@@ -581,7 +581,7 @@ export default function ShopScreen() {
                                         style={styles.scanLargeButton}
                                         onPress={() => {
                                             console.log('[Shop] Navigating to scanner from empty lookup');
-                                            router.push('/scan');
+                                            router.push('/scan?fromBasket=true');
                                         }}
                                     >
                                         <Camera size={24} color="#FFFFFF" />
@@ -596,7 +596,7 @@ export default function ShopScreen() {
                                 style={styles.scanSmallButton}
                                 onPress={() => {
                                     console.log('[Shop] Navigating to scanner from lookup footer');
-                                    router.push('/scan');
+                                    router.push('/scan?fromBasket=true');
                                 }}
                             >
                                 <Camera size={20} color="#FFFFFF" />

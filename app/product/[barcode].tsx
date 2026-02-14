@@ -23,99 +23,85 @@ import { useCallback } from 'react';
 
 export default function ProductDetailsScreen() {
     useKeepAwake();
-    const { barcode } = useLocalSearchParams<{ barcode: string }>();
+    const { barcode, fromBasket } = useLocalSearchParams<{ barcode: string, fromBasket?: string }>();
+    const isFromBasket = fromBasket === 'true';
+
+    const { user, loading: authLoading } = useAuth();
     const router = useRouter();
     const { t } = useTranslation();
-    const { user } = useAuth();
-    const { selectedSupermarket, setSelectedSupermarket, isShopMode, addToBasket } = useSupermarketSession();
-    const [prices, setPrices] = useState<PriceEntry[]>([]);
+
+    const [productInfo, setProductInfo] = useState<PriceEntry | null>(null);
+    const [latestPrices, setLatestPrices] = useState<PriceEntry[]>([]);
+    const [stats, setStats] = useState<{ min: number; avg: number; minSupermarket: string } | null>(null);
     const [loading, setLoading] = useState(true);
-    const [productInfo, setProductInfo] = useState<{
-        name: string;
-        brand?: string;
-        imageUrl?: string;
-    } | null>(null);
+    const [selectedSupermarket, setSelectedSupermarket] = useState<string | null>(null);
+    const [currentSupermarketPrice, setCurrentSupermarketPrice] = useState<PriceEntry | null>(null);
+    const { addToBasket } = useSupermarketSession();
 
     const loadPrices = useCallback(async () => {
-        setLoading(true);
         try {
-            const fetchedPrices = await getPricesByBarcode(barcode);
-            console.log(`[Product] Fetching prices for barcode: ${barcode}`);
-            setPrices(fetchedPrices);
+            setLoading(true);
+            const prices = await getPricesByBarcode(barcode);
 
-            if (fetchedPrices.length > 0) {
-                console.log(`[Product] Prices found: ${fetchedPrices.length}`);
-                const newest = fetchedPrices[0];
-                setProductInfo({
-                    name: newest.productName,
-                    brand: newest.brand,
-                    imageUrl: newest.imageUrl,
-                });
+            if (prices.length > 0) {
+                // Group by supermarket and take the latest price for each
+                const latestBySupermarket = prices.reduce((acc, curr) => {
+                    if (!acc[curr.supermarket] || new Date(curr.timestamp) > new Date(acc[curr.supermarket].timestamp)) {
+                        acc[curr.supermarket] = curr;
+                    }
+                    return acc;
+                }, {} as Record<string, PriceEntry>);
+
+                const uniquePrices = Object.values(latestBySupermarket);
+                setLatestPrices(uniquePrices);
+
+                // Calculate stats
+                const pricesList = uniquePrices.map(p => p.price);
+                const min = Math.min(...pricesList);
+                const avg = pricesList.reduce((a, b) => a + b, 0) / pricesList.length;
+                const minSupermarket = uniquePrices.find(p => p.price === min)?.supermarket || '';
+
+                setStats({ min, avg, minSupermarket });
+
+                // Set product info from the most recent entry
+                const mostRecent = prices.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+                setProductInfo(mostRecent);
+            } else {
+                setLatestPrices([]);
+                setStats(null);
             }
         } catch (error) {
             console.error('Error loading prices:', error);
+            Alert.alert(t('error'), t('load_error'));
         } finally {
             setLoading(false);
         }
-    }, [barcode]);
+    }, [barcode, t]);
 
     useEffect(() => {
-        if (barcode) {
-            loadPrices();
+        loadPrices();
+    }, [loadPrices]);
+
+    // Check if the current selected supermarket has a price entry
+    useEffect(() => {
+        if (selectedSupermarket && latestPrices.length > 0) {
+            const price = latestPrices.find(p => p.supermarket === selectedSupermarket);
+            setCurrentSupermarketPrice(price || null);
+        } else {
+            setCurrentSupermarketPrice(null);
         }
-    }, [barcode, loadPrices]);
+    }, [selectedSupermarket, latestPrices]);
 
-    // Filter to get only the latest price for each supermarket
-    const getLatestPricesPerSupermarket = () => {
-        const latestMap = new Map<string, PriceEntry>();
-        // prices is already sorted by date desc
-        prices.forEach(p => {
-            if (!latestMap.has(p.supermarket)) {
-                latestMap.set(p.supermarket, p);
-            }
-        });
-        return Array.from(latestMap.values());
-    };
+    // Set initial selected supermarket to the one with the best price or the first one
+    useEffect(() => {
+        if (stats?.minSupermarket && !selectedSupermarket) {
+            setSelectedSupermarket(stats.minSupermarket);
+        } else if (latestPrices.length > 0 && !selectedSupermarket) {
+            setSelectedSupermarket(latestPrices[0].supermarket);
+        }
+    }, [stats, latestPrices, selectedSupermarket]);
 
-    const latestPrices = getLatestPricesPerSupermarket();
-
-    const getPriceStats = () => {
-        if (latestPrices.length === 0) return null;
-
-        // Find entry with minimum price
-        const minEntry = latestPrices.reduce((prev, curr) =>
-            prev.price < curr.price ? prev : curr
-        );
-
-        const values = latestPrices.map(p => p.price);
-        const max = Math.max(...values);
-        const avg = values.reduce((a, b) => a + b, 0) / values.length;
-
-        return {
-            min: minEntry.price,
-            minSupermarket: minEntry.supermarket,
-            max,
-            avg
-        };
-    };
-
-    const stats = getPriceStats();
-
-    // Helper to check if date is today
-    const isToday = (dateString: string) => {
-        const date = new Date(dateString);
-        const today = new Date();
-        return date.getDate() === today.getDate() &&
-            date.getMonth() === today.getMonth() &&
-            date.getFullYear() === today.getFullYear();
-    };
-
-    // Find price for current supermarket session (from latest list)
-    const currentSupermarketPrice = selectedSupermarket
-        ? latestPrices.find(p => p.supermarket === selectedSupermarket)
-        : null;
-
-    const isUpdatedToday = currentSupermarketPrice && isToday(currentSupermarketPrice.timestamp);
+    const isUpdatedToday = currentSupermarketPrice && new Date(currentSupermarketPrice.timestamp).toDateString() === new Date().toDateString();
 
     const handleConfirmPrice = async () => {
         if (!user) {
@@ -130,10 +116,10 @@ export default function ProductDetailsScreen() {
                 timestamp: new Date().toISOString(),
             });
 
-            if (isShopMode) {
+            if (isFromBasket) {
                 addToBasket({
                     barcode,
-                    productName: productInfo?.name || t('unknown_product'),
+                    productName: productInfo?.productName || t('unknown_product'),
                     price: currentSupermarketPrice.price,
                     quantity: 1,
                     supermarket: currentSupermarketPrice.supermarket,
@@ -142,19 +128,20 @@ export default function ProductDetailsScreen() {
                 });
             }
 
-            Alert.alert(t('success'), isShopMode ? t('item_added_to_basket') : t('price_confirmed'), [
+            Alert.alert(t('success'), isFromBasket ? t('item_added_to_basket') : t('price_confirmed'), [
                 {
-                    text: isShopMode ? t('add_more') : 'OK',
+                    text: isFromBasket ? t('add_more') : 'OK',
                     onPress: () => {
-                        console.log('[Product Detail] User chose:', isShopMode ? 'Add More' : 'OK');
-                        if (isShopMode) {
-                            router.replace('/scan');
+                        console.log('[Product Detail] User chose:', isFromBasket ? 'Add More' : 'OK');
+                        if (isFromBasket) {
+                            // Pass fromBasket=true back to scan
+                            router.replace('/scan?fromBasket=true');
                         } else {
                             loadPrices(); // Refresh list
                         }
                     }
                 },
-                ...(isShopMode ? [{
+                ...(isFromBasket ? [{
                     text: t('view_basket'),
                     onPress: () => {
                         console.log('[Product Detail] User chose: View Basket');
@@ -177,7 +164,7 @@ export default function ProductDetailsScreen() {
             pathname: '/register',
             params: {
                 barcode,
-                productName: productInfo?.name,
+                productName: productInfo?.productName,
                 imageUrl: productInfo?.imageUrl,
                 brand: productInfo?.brand,
             },
@@ -276,7 +263,7 @@ export default function ProductDetailsScreen() {
                                 <View style={styles.placeholderImage} />
                             )}
                             <View style={styles.productInfo}>
-                                <Text style={styles.productName}>{productInfo?.name || t('unknown_product')}</Text>
+                                <Text style={styles.productName}>{productInfo?.productName || t('unknown_product')}</Text>
                                 {productInfo?.brand && (
                                     <Text style={styles.productBrand}>{productInfo.brand}</Text>
                                 )}
@@ -329,7 +316,7 @@ export default function ProductDetailsScreen() {
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.verifyButton, styles.verifyButtonYes]} onPress={handleConfirmPrice}>
                                             <Check size={20} color="#10B981" />
-                                            <Text style={styles.verifyButtonText}>{isShopMode ? t('confirm_and_add') : t('yes')}</Text>
+                                            <Text style={styles.verifyButtonText}>{isFromBasket ? t('confirm_and_add') : t('yes')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}

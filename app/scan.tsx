@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
 import { PriceEntry } from '@/types/price';
 import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
@@ -29,6 +29,8 @@ export default function ScanScreen() {
   const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const { selectedSupermarket } = useSupermarketSession();
+  const params = useLocalSearchParams();
+  const fromBasket = params.fromBasket as string;
 
   const [scanned, setScanned] = useState(false);
   const [flash, setFlash] = useState(false);
@@ -126,7 +128,8 @@ export default function ScanScreen() {
           // Success - Redirect to Product Details
           setStatus('success');
           await new Promise(resolve => setTimeout(resolve, 500));
-          router.push(`/product/${data}`);
+          // Pass fromBasket param
+          router.push(`/product/${data}?fromBasket=${fromBasket || ''}`);
         } else {
           // Price not found for this supermarket
           setStatus('price_not_found');
@@ -140,7 +143,8 @@ export default function ScanScreen() {
               barcode: data,
               productName: prod?.productName,
               imageUrl: prod?.imageUrl,
-              brand: prod?.brand
+              brand: prod?.brand,
+              fromBasket: fromBasket || ''
             }
           });
         }
@@ -156,7 +160,7 @@ export default function ScanScreen() {
 
         router.push({
           pathname: '/register',
-          params: { barcode: data }
+          params: { barcode: data, fromBasket: fromBasket || '' }
         });
       }
 
