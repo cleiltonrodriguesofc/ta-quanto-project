@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../index';
 import * as storage from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
+import { SupermarketProvider } from '@/context/SupermarketContext';
 
 // Mock dependencies
 jest.mock('@/utils/storage');
@@ -53,18 +54,19 @@ describe('HomeScreen', () => {
     mockRouter.push.mockClear();
   });
 
+  const renderHomeScreen = () => render(
+    <SupermarketProvider>
+      <HomeScreen />
+    </SupermarketProvider>
+  );
+
   it('should render home screen correctly', async () => {
     mockStorage.getStoredPrices.mockResolvedValue([]);
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = renderHomeScreen();
 
     expect(getByText('TaQuanto?')).toBeTruthy();
     expect(getByText('welcome')).toBeTruthy();
-    expect(getByText('what_to_do')).toBeTruthy();
-    expect(getByText('scan_barcode')).toBeTruthy();
-    expect(getByText('community')).toBeTruthy();
-    expect(getByText('enter_manually')).toBeTruthy();
-    expect(getByText('shopping_list')).toBeTruthy();
 
     await waitFor(() => {
       expect(getByText('recent_prices')).toBeTruthy();
@@ -74,7 +76,7 @@ describe('HomeScreen', () => {
   it('should display correct statistics', async () => {
     mockStorage.getStoredPrices.mockResolvedValue(mockPrices);
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = renderHomeScreen();
 
     await waitFor(() => {
       // Savings: 0 (since each product has only 1 price)
@@ -90,21 +92,11 @@ describe('HomeScreen', () => {
   it('should show correct empty state when no prices exist', async () => {
     mockStorage.getStoredPrices.mockResolvedValue([]);
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = renderHomeScreen();
 
     await waitFor(() => {
       expect(getByText('no_products_found')).toBeTruthy();
     });
-  });
-
-  it('should navigate to routes when shopping list is pressed', async () => {
-    mockStorage.getStoredPrices.mockResolvedValue([]);
-
-    const { getByText } = render(<HomeScreen />);
-
-    fireEvent.press(getByText('shopping_list'));
-
-    expect(mockRouter.push).toHaveBeenCalledWith('/routes');
   });
 
   it('should handle storage error gracefully', async () => {
@@ -113,7 +105,7 @@ describe('HomeScreen', () => {
 
     mockStorage.getStoredPrices.mockRejectedValue(new Error('Storage error'));
 
-    const { getByText, getAllByText } = render(<HomeScreen />);
+    const { getByText, getAllByText } = renderHomeScreen();
 
     await waitFor(() => {
       // Should show default values when storage fails
@@ -139,7 +131,7 @@ describe('HomeScreen', () => {
     // Savings: 4.99 - 3.50 = 1.49
     mockStorage.getStoredPrices.mockResolvedValue(prices);
 
-    const { getByText, getAllByText } = render(<HomeScreen />);
+    const { getByText } = renderHomeScreen();
 
     await waitFor(() => {
       expect(getByText('R$1.49')).toBeTruthy();

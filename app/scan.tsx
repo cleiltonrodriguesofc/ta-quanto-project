@@ -64,6 +64,7 @@ export default function ScanScreen() {
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     if (scanned) return;
     setScanned(true);
+    console.log(`[Scan] Barcode detected: ${data} (Type: ${type})`);
 
     try {
       // Step 1: Searching

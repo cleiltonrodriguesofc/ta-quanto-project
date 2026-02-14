@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Users, Plus, MapPin, User, Tag, Store, Package } from 'lucide-react-native';
+import { Chrome as Home, Users, Plus, MapPin, User, Tag, Store, Package, ShoppingCart } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 export default function TabLayout() {
@@ -35,9 +35,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="shop"
+        options={{
+          title: t('shop_mode'),
+          tabBarIcon: ({ size, color }) => (
+            <ShoppingCart size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="social"
         options={{
-          href: null, // Hidden as requested
+          href: null,
           title: t('social'),
           tabBarIcon: ({ size, color }) => (
             <Users size={size} color={color} />
@@ -47,7 +56,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="community"
         options={{
-          href: null, // Hidden as requested by user
+          href: null,
           title: t('community'),
           tabBarIcon: ({ size, color }) => (
             <Tag size={size} color={color} />
@@ -84,7 +93,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="routes"
         options={{
-          href: null, // Hidden as requested
+          href: null,
           title: t('routes'),
           tabBarIcon: ({ size, color }) => (
             <MapPin size={size} color={color} />
