@@ -51,24 +51,8 @@ export const saveNamedBasket = async (
     supermarket: string,
     totalAmount: number
 ) => {
-    // 1. Create the basket record
-    const { data: basket, error: basketError } = await supabase
-        .from('saved_baskets')
-        .insert({
-            user_id: userId,
-            name,
-            supermarket,
-            total_amount: totalAmount,
-            item_count: items.length
-        })
-        .select()
-        .single();
-
-    if (basketError) throw basketError;
-
-    // 2. Create the items records
-    const basketItems = items.map(item => ({
-        basket_id: basket.id,
+    // Prepare items for RPC (JSONB array)
+    const rpcItems = items.map(item => ({
         barcode: item.barcode,
         productName: item.productName,
         price: item.price,
@@ -76,13 +60,26 @@ export const saveNamedBasket = async (
         imageUrl: item.imageUrl
     }));
 
-    const { error: itemsError } = await supabase
-        .from('saved_basket_items')
-        .insert(basketItems);
+    const { data, error } = await supabase
+        .rpc('create_basket', {
+            p_name: name,
+            p_supermarket: supermarket,
+            p_total_amount: totalAmount,
+            p_item_count: items.length,
+            p_items: rpcItems
+        });
 
-    if (itemsError) throw itemsError;
+    if (error) {
+        console.error('[BasketService] RPC Error creating basket:', error);
+        throw error;
+    }
 
-    return basket;
+    if (data && !data.success) {
+        throw new Error(data.error || 'Failed to create basket via RPC');
+    }
+
+    // Return object compatible with UI expectations (needs at least id)
+    return { id: data.id, name, supermarket, total_amount: totalAmount, item_count: items.length };
 };
 
 export const getSavedBaskets = async (userId: string) => {
@@ -112,29 +109,8 @@ export const updateSavedBasket = async (
     items: BasketItem[],
     totalAmount: number
 ) => {
-    // 1. Update basket totals
-    const { error: basketError } = await supabase
-        .from('saved_baskets')
-        .update({
-            total_amount: totalAmount,
-            item_count: items.length
-        })
-        .eq('id', basketId)
-        .eq('user_id', userId);
-
-    if (basketError) throw basketError;
-
-    // 2. Delete existing items
-    const { error: deleteError } = await supabase
-        .from('saved_basket_items')
-        .delete()
-        .eq('basket_id', basketId);
-
-    if (deleteError) throw deleteError;
-
-    // 3. Insert new items
-    const basketItems = items.map(item => ({
-        basket_id: basketId,
+    // Prepare items for RPC (JSONB array)
+    const rpcItems = items.map(item => ({
         barcode: item.barcode,
         productName: item.productName,
         price: item.price,
@@ -142,58 +118,51 @@ export const updateSavedBasket = async (
         imageUrl: item.imageUrl
     }));
 
-    const { error: insertError } = await supabase
-        .from('saved_basket_items')
-        .insert(basketItems);
+    const { data, error } = await supabase
+        .rpc('update_basket_details', {
+            p_basket_id: basketId,
+            p_total_amount: totalAmount,
+            p_item_count: items.length,
+            p_items: rpcItems
+        });
 
-    if (insertError) throw insertError;
+    if (error) {
+        console.error('[BasketService] RPC Error updating basket:', error);
+        throw error;
+    }
+
+    if (data && !data.success) {
+        throw new Error(data.error || 'Failed to update basket via RPC');
+    }
 };
 
 export const deleteSavedBasket = async (userId: string, basketId: string) => {
-    console.log('[BasketService] Attempting to delete basket:', basketId, 'for user:', userId);
+    console.log('[BasketService] Attempting to delete basket via RPC:', basketId);
 
-    // 1. Delete items first to be safe
-    const { error: itemsError, count: itemsCount } = await supabase
-        .from('saved_basket_items')
-        .delete({ count: 'exact' })
-        .eq('basket_id', basketId);
+    const { data, error } = await supabase
+        .rpc('delete_basket', { basket_id: basketId });
 
-    if (itemsError) {
-        console.error('[BasketService] Error deleting items:', itemsError);
-        throw itemsError;
+    if (error) {
+        console.error('[BasketService] RPC Error deleting basket:', error);
+        throw error;
     }
-    console.log('[BasketService] Deleted items count:', itemsCount);
 
-    // 2. Delete basket
-    const { error: basketError, count: basketCount } = await supabase
-        .from('saved_baskets')
-        .delete({ count: 'exact' })
-        .eq('id', basketId)
-        .eq('user_id', userId);
+    console.log('[BasketService] RPC result:', data);
 
-    if (basketError) {
-        console.error('[BasketService] Error deleting basket:', basketError);
-        throw basketError;
-    }
-    console.log('[BasketService] Deleted basket count:', basketCount);
-
-    if (basketCount === 0) {
-        // Debug: Check if basket exists AT ALL
-        const { data: debugBasket, error: debugError } = await supabase
+    if (data && !data.success) {
+        console.warn('[BasketService] Deletion failed on server:', data.error);
+        // Fallback debug: Check existence
+        const { data: debugBasket } = await supabase
             .from('saved_baskets')
             .select('*')
             .eq('id', basketId)
             .single();
 
         if (debugBasket) {
-            console.warn('[BasketService] Basket exists but was not deleted. Owner mismatch?',
-                { basketOwner: debugBasket.user_id, requestUser: userId }
+            console.warn('[BasketService] Basket exists. Owner check:',
+                { owner: debugBasket.user_id, sessionUser: userId, ownerType: typeof debugBasket.user_id, userType: typeof userId }
             );
-        } else {
-            console.warn('[BasketService] Basket ID not found in database:', basketId);
         }
-
-        console.warn('[BasketService] Warning: No basket was deleted. Check if userId matches or if basketId exists.');
     }
 };
 
