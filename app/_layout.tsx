@@ -6,6 +6,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { SupermarketProvider } from '@/context/SupermarketContext';
 import { AuthProvider } from '@/context/AuthContext';
 
+
 export default function RootLayout() {
   useFrameworkReady();
 

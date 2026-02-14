@@ -27,7 +27,7 @@ export default function ProductDetailsScreen() {
     const router = useRouter();
     const { t } = useTranslation();
     const { user } = useAuth();
-    const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
+    const { selectedSupermarket, setSelectedSupermarket, isShopMode, addToBasket } = useSupermarketSession();
     const [prices, setPrices] = useState<PriceEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [productInfo, setProductInfo] = useState<{
@@ -129,8 +129,39 @@ export default function ProductDetailsScreen() {
                 ...currentSupermarketPrice,
                 timestamp: new Date().toISOString(),
             });
-            Alert.alert(t('success'), t('price_confirmed'));
-            loadPrices(); // Refresh list
+
+            if (isShopMode) {
+                addToBasket({
+                    barcode,
+                    productName: productInfo?.name || t('unknown_product'),
+                    price: currentSupermarketPrice.price,
+                    quantity: 1,
+                    supermarket: currentSupermarketPrice.supermarket,
+                    imageUrl: productInfo?.imageUrl,
+                    timestamp: new Date().toISOString(),
+                });
+            }
+
+            Alert.alert(t('success'), isShopMode ? t('item_added_to_basket') : t('price_confirmed'), [
+                {
+                    text: isShopMode ? t('add_more') : 'OK',
+                    onPress: () => {
+                        console.log('[Product Detail] User chose:', isShopMode ? 'Add More' : 'OK');
+                        if (isShopMode) {
+                            router.replace('/scan');
+                        } else {
+                            loadPrices(); // Refresh list
+                        }
+                    }
+                },
+                ...(isShopMode ? [{
+                    text: t('view_basket'),
+                    onPress: () => {
+                        console.log('[Product Detail] User chose: View Basket');
+                        router.replace('/(tabs)/shop');
+                    }
+                }] : [])
+            ]);
         } catch (error) {
             console.error('Error confirming price:', error);
             Alert.alert(t('error'), t('confirm_error'));
@@ -298,7 +329,7 @@ export default function ProductDetailsScreen() {
                                         </TouchableOpacity>
                                         <TouchableOpacity style={[styles.verifyButton, styles.verifyButtonYes]} onPress={handleConfirmPrice}>
                                             <Check size={20} color="#10B981" />
-                                            <Text style={styles.verifyButtonText}>{t('yes')}</Text>
+                                            <Text style={styles.verifyButtonText}>{isShopMode ? t('confirm_and_add') : t('yes')}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}

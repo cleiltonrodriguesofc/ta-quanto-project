@@ -13,7 +13,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Save, Camera, MapPin as _MapPin } from 'lucide-react-native';
+import { ArrowLeft, Save, Camera, Minus, Plus } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import {
   launchCameraAsync,
@@ -30,7 +30,7 @@ export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { t } = useTranslation();
-  const { selectedSupermarket, setSelectedSupermarket } = useSupermarketSession();
+  const { selectedSupermarket, setSelectedSupermarket, isShopMode, addToBasket } = useSupermarketSession();
   const hasInitialized = useRef(false);
 
   const [productName, setProductName] = useState('');
@@ -41,7 +41,8 @@ export default function RegisterScreen() {
   const [brand, setBrand] = useState('');
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [_isLoadingLocation, setIsLoadingLocation] = useState(false);
+
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (params.barcode && params.barcode !== globalLastLoggedBarcode) {
@@ -66,24 +67,6 @@ export default function RegisterScreen() {
     }
   }, [params, selectedSupermarket]);
 
-  const _handleGetLocation = async () => {
-    setIsLoadingLocation(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(t('permission_denied'), t('location_denied'));
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      setLocation(location);
-    } catch (error) {
-      console.error('Error getting location:', error);
-      Alert.alert(t('error'), t('error'));
-    } finally {
-      setIsLoadingLocation(false);
-    }
-  };
 
   const handleTakePhoto = async () => {
     const { status } = await requestCameraPermissionsAsync();
@@ -115,11 +98,13 @@ export default function RegisterScreen() {
       return;
     }
 
+    const priceValue = parseFloat(price.replace(',', '.'));
+
     setIsLoading(true);
     try {
       await savePriceEntry({
         productName,
-        price: parseFloat(price.replace(',', '.')),
+        price: priceValue,
         supermarket,
         barcode,
         brand,
@@ -131,11 +116,37 @@ export default function RegisterScreen() {
         } : undefined,
       });
 
-      Alert.alert(t('success'), t('product_registered'), [
+      if (isShopMode) {
+        addToBasket({
+          barcode,
+          productName,
+          price: priceValue,
+          quantity: quantity,
+          supermarket,
+          imageUrl,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      Alert.alert(t('success'), isShopMode ? t('item_added_to_basket') : t('product_registered'), [
         {
-          text: 'OK',
-          onPress: () => router.replace(`/product/${barcode}`)
-        }
+          text: isShopMode ? t('add_more') : 'OK',
+          onPress: () => {
+            console.log('[Register] User chose:', isShopMode ? 'Add More' : 'OK');
+            if (isShopMode) {
+              router.replace('/scan');
+            } else {
+              router.replace(`/product/${barcode}`);
+            }
+          }
+        },
+        ...(isShopMode ? [{
+          text: t('view_basket'),
+          onPress: () => {
+            console.log('[Register] User chose: View Basket');
+            router.replace('/(tabs)/shop');
+          }
+        }] : [])
       ]);
     } catch (error) {
       console.error('Error saving price:', error);
@@ -198,6 +209,7 @@ export default function RegisterScreen() {
             />
           </View>
 
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('supermarket')} *</Text>
             <SupermarketSelector
@@ -215,6 +227,27 @@ export default function RegisterScreen() {
               placeholder="e.g., Coca-Cola"
             />
           </View>
+
+          {isShopMode && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{t('quantity')}</Text>
+              <View style={styles.quantityContainer}>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                >
+                  <Minus size={24} color="#3A7DE8" />
+                </TouchableOpacity>
+                <Text style={styles.quantityText}>{quantity}</Text>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => setQuantity(quantity + 1)}
+                >
+                  <Plus size={24} color="#3A7DE8" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
 
           <TouchableOpacity
@@ -333,6 +366,32 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+  },
+  quantityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'space-between',
+  },
+  quantityButton: {
+    padding: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  quantityText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginHorizontal: 20,
   },
   locationSection: {
     marginBottom: 24,
