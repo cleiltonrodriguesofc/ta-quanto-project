@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, TextInput, Image, ActivityIndicator } from 'react-native';
 import { User, Settings, Award, TrendingUp, DollarSign, Share2, LogOut, ChevronRight, Edit2, Shield, Bell, Moon } from 'lucide-react-native';
 import { UserProfile, AVATAR_PRESETS } from '@/types/user';
@@ -24,15 +24,9 @@ export default function ProfileScreen() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/auth/login');
-    } else if (user) {
-      loadProfile();
-    }
-  }, [user, authLoading, router]);
 
-  const loadProfile = async () => {
+
+  const loadProfile = useCallback(async () => {
     const userProfile = await getUserProfile(user?.id);
     setProfile(userProfile);
     if (userProfile) {
@@ -53,7 +47,15 @@ export default function ProfileScreen() {
     } else {
       setIsEditing(true);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/auth/login');
+    } else if (user) {
+      loadProfile();
+    }
+  }, [user, authLoading, router, loadProfile]);
 
   const pickImage = async () => {
     // No permissions request is necessary for launching the image library
@@ -244,7 +246,7 @@ export default function ProfileScreen() {
     );
   }
 
-  const points = (profile?.stats.pricesShared || 0) * 10;
+
 
   return (
     <View style={styles.container}>

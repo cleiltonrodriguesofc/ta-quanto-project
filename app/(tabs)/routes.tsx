@@ -25,7 +25,7 @@ export default function ShoppingListScreen() {
   const { user, isLoading: authLoading } = useAuth();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -33,7 +33,7 @@ export default function ShoppingListScreen() {
     } else if (user) {
       loadList();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, router]);
 
   const loadList = async () => {
     try {
@@ -68,7 +68,7 @@ export default function ShoppingListScreen() {
     const updatedList = [...items, newItem];
     saveList(updatedList);
     setNewItemName('');
-    setIsAdding(false);
+
   };
 
   const toggleItem = (id: string) => {

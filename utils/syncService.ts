@@ -44,7 +44,7 @@ export const isCacheStale = async (maxAgeHours: number = 24): Promise<boolean> =
         const diffHours = diffMs / (1000 * 60 * 60);
 
         return diffHours > maxAgeHours;
-    } catch (error) {
+    } catch {
         return true;
     }
 };

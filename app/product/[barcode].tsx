@@ -26,7 +26,7 @@ export default function ProductDetailsScreen() {
     const { barcode, fromBasket } = useLocalSearchParams<{ barcode: string, fromBasket?: string }>();
     const isFromBasket = fromBasket === 'true';
 
-    const { user, isLoading: authLoading } = useAuth();
+    const { user } = useAuth();
     const router = useRouter();
     const { t } = useTranslation();
 

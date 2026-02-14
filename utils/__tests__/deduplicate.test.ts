@@ -2,7 +2,7 @@
 // process.env.EXPO_PUBLIC_USE_SUPABASE = 'true'; // This line is removed
 
 // import { api } from '../api'; // This line is removed
-import { supabase } from '../supabase';
+
 
 jest.mock('../supabase', () => ({
     supabase: {
@@ -36,6 +36,7 @@ describe('Deduplication Test', () => {
         process.env.EXPO_PUBLIC_USE_SUPABASE = 'true';
         jest.resetModules();
         // Re-require api after setting env var
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         api = require('../api').api;
     });
 

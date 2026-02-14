@@ -31,16 +31,15 @@ const stringToUuid = (str: string): string => {
 // - CURRENTLY EXCLUDES address/lat/long because Supabase schema is missing them
 // - Generates deterministic UUID for legacy IDs
 const formatPriceForSupabase = (price: PriceEntry) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { quantity, location, id, userId, ...rest } = price;
+
 
     // Ensure ID is a valid UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    let finalId = id;
+    let finalId = price.id;
 
-    if (!uuidRegex.test(id)) {
+    if (!uuidRegex.test(price.id)) {
         // Generate deterministic UUID for legacy IDs
-        finalId = stringToUuid(id);
+        finalId = stringToUuid(price.id);
     }
 
     return {
@@ -52,7 +51,7 @@ const formatPriceForSupabase = (price: PriceEntry) => {
         brand: price.brand || null,
         imageUrl: price.imageUrl || null,
         id: finalId,
-        userId: userId || null,
+        userId: price.userId || null,
     };
 };
 
@@ -63,7 +62,6 @@ const formatPriceForSupabase = (price: PriceEntry) => {
 // - Flattens 'stats'
 // - Validates ID is UUID (Supabase requirement)
 const formatUserForSupabase = (user: UserProfile) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { avatarId, displayName, joinedDate, stats, level, points, badges, settings, ...rest } = user;
 
     // Ensure ID is a valid UUID
@@ -103,7 +101,7 @@ export const checkApiConnection = async (): Promise<boolean> => {
             try {
                 const data = JSON.parse(text);
                 return data.status === 'ok';
-            } catch (e) {
+            } catch {
                 console.log('[API] Local connection failed: Response was not JSON', text.substring(0, 100));
                 return false;
             }
@@ -416,7 +414,7 @@ export const api = {
             });
 
             // 3. Upload ArrayBuffer
-            const { error, data } = await supabase.storage
+            const { error } = await supabase.storage
                 .from('profiles')
                 .upload(filePath, arrayBuffer, {
                     contentType: 'image/jpeg',
@@ -524,7 +522,7 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
         // 1. Check Cache (Supabase or Local)
         try {
             if (USE_SUPABASE) {
-                const { data, error } = await supabase
+                const { data } = await supabase
                     .from('products')
                     .select('*')
                     .eq('barcode', barcode)
@@ -544,7 +542,7 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
                     return localProduct;
                 }
             }
-        } catch (e) {
+        } catch {
             console.log(`[API] ${USE_SUPABASE ? 'Supabase' : 'Local'} cache check failed, trying external`);
         }
 
@@ -590,7 +588,7 @@ export const fetchProductFromOpenFoodFacts = async (barcode: string) => {
 
         // 5. Save to Cache (Fire and Forget)
         if (product) {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
             const { price, barcode: pBarcode, ...productMetadata } = product;
 
             if (USE_SUPABASE) {

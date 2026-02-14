@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet } from 'react-native';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import { SupermarketSelector } from './SupermarketSelector';
 import { useTranslation } from 'react-i18next';

@@ -16,16 +16,17 @@ const initI18n = async () => {
     // Fallback to pt-BR if language not supported, or if it's just 'pt'
     const languageToUse = deviceLanguage.startsWith('en') ? 'en-US' : 'pt-BR';
 
-    await i18next
-        .use(initReactI18next)
-        .init({
-            resources,
-            lng: languageToUse,
-            fallbackLng: 'pt-BR',
-            interpolation: {
-                escapeValue: false,
-            },
-        });
+    await // eslint-disable-next-line import/no-named-as-default-member
+        i18next
+            .use(initReactI18next)
+            .init({
+                resources,
+                lng: languageToUse,
+                fallbackLng: 'pt-BR',
+                interpolation: {
+                    escapeValue: false,
+                },
+            });
 };
 
 initI18n();

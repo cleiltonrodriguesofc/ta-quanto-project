@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Save, Camera } from 'lucide-react-native';
-import * as Location from 'expo-location';
+
 import {
   launchCameraAsync,
   requestCameraPermissionsAsync
@@ -39,7 +39,7 @@ export default function RegisterScreen() {
   const [barcode, setBarcode] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [brand, setBrand] = useState('');
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -108,10 +108,7 @@ export default function RegisterScreen() {
         brand,
         imageUrl,
         timestamp: new Date().toISOString(),
-        location: location ? {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        } : undefined,
+        location: undefined,
       });
 
       const isFromBasket = params.fromBasket === 'true';

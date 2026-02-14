@@ -33,3 +33,12 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# test artifacts
+*_final.txt
+*_warnings.txt
+lint_*.txt
+tsc_*.txt
+
+# sql scripts
+*.sql

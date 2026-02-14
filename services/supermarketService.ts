@@ -48,7 +48,7 @@ export const SupermarketService = {
 
                 try {
                     return JSON.parse(text);
-                } catch (e) {
+                } catch {
                     console.error('Invalid JSON response from server (supermarkets):', text.substring(0, 100));
                     return [];
                 }
@@ -87,14 +87,14 @@ export const SupermarketService = {
                     try {
                         const errorData = JSON.parse(text);
                         throw new Error(errorData.error || 'Failed to add supermarket');
-                    } catch (e) {
+                    } catch {
                         throw new Error(`Failed to add supermarket: ${response.status} ${text}`);
                     }
                 }
 
                 try {
                     return JSON.parse(text);
-                } catch (e) {
+                } catch {
                     throw new Error(`Invalid JSON response from server: ${text.substring(0, 100)}`);
                 }
             }

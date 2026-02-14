@@ -97,7 +97,7 @@ jest.mock('react-native/Libraries/TurboModule/TurboModuleRegistry', () => {
 
       try {
         return actual.getEnforcing(name);
-      } catch (e) {
+      } catch {
         // Fallback if not found
         return genericMock;
       }
