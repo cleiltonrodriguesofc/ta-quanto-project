@@ -322,7 +322,8 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - Hidden */}
+        {/* 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>{t('recent_activity')}</Text>
           {recentActivity.length > 0 ? (
@@ -342,7 +343,8 @@ export default function ProfileScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </View> 
+        */}
 
         {/* Menu Options */}
         <View style={styles.sectionContainer}>
