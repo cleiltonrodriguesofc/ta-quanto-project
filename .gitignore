@@ -42,3 +42,7 @@ tsc_*.txt
 
 # sql scripts
 *.sql
+
+# server debug / tunnel files
+server/tunnel_url*.txt
+server/*.txt
