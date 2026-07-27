@@ -1,62 +1,34 @@
 import { useState, useEffect } from 'react';
-import * as Location from 'expo-location';
+import { getSupermarketsUseCase, getNearestSupermarketUseCase } from '@/src/application';
+import { asyncStorageSupermarketRepository } from '@/src/infrastructure/storage';
 import { Supermarket } from '@/types/supermarket';
-import { SupermarketService } from '@/services/supermarketService';
 
-export const useSupermarkets = () => {
-    const [supermarkets, setSupermarkets] = useState<Supermarket[]>([]);
-    const [nearestSupermarket, setNearestSupermarket] = useState<Supermarket | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+export function useSupermarkets() {
+  const [supermarkets, setSupermarkets] = useState<Supermarket[]>([]);
+  const [nearestSupermarket, setNearestSupermarket] = useState<Supermarket | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        loadSupermarkets();
-    }, []);
+  useEffect(() => {
+    async function loadSupermarkets() {
+      try {
+        const data = await getSupermarketsUseCase.execute();
+        setSupermarkets(data as unknown as Supermarket[]);
+        if (data.length > 0) setNearestSupermarket(data[0] as unknown as Supermarket);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch supermarkets');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadSupermarkets();
+  }, []);
 
-    const loadSupermarkets = async () => {
-        setIsLoading(true);
-        try {
-            // Load from API
-            const allSupermarkets = await SupermarketService.getAll();
-            setSupermarkets(allSupermarkets);
+  const addSupermarket = async (name: string, type?: string, address?: string) => {
+    const newMarket = await asyncStorageSupermarketRepository.add({ name, type, address });
+    setSupermarkets(prev => [...prev, newMarket as unknown as Supermarket]);
+    return newMarket;
+  };
 
-            // Try to get location for nearest suggestion
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            setLocationPermission(status === 'granted');
-
-            if (status === 'granted') {
-                const location = await Location.getCurrentPositionAsync({});
-                const nearest = SupermarketService.getNearest(
-                    location.coords.latitude,
-                    location.coords.longitude,
-                    allSupermarkets
-                );
-                setNearestSupermarket(nearest);
-            }
-        } catch (error) {
-            console.error('Error loading supermarkets or location:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const addSupermarket = async (name: string) => {
-        try {
-            const newSupermarket = await SupermarketService.add(name);
-            setSupermarkets(prev => [...prev, newSupermarket]);
-            return newSupermarket;
-        } catch (error) {
-            console.error('Error adding supermarket:', error);
-            throw error;
-        }
-    };
-
-    return {
-        supermarkets,
-        nearestSupermarket,
-        isLoading,
-        locationPermission,
-        refresh: loadSupermarkets,
-        addSupermarket,
-    };
-};
+  return { supermarkets, nearestSupermarket, isLoading, error, addSupermarket };
+}

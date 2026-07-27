@@ -1,0 +1,230 @@
+# TaQuanto? — Plano de Refatoração: Clean Architecture
+
+## Contexto
+
+**Branch de snapshot (estado anterior):** `chore/pre-clean-arch-snapshot`
+**Branch de trabalho:** `refactor/clean-architecture`
+
+O projeto está funcional mas com arquitetura plana (flat). Toda lógica de negócio, acesso a dados e UI estão misturadas. A refatoração é **incremental** — o app nunca para de funcionar entre fases.
+
+---
+
+## Estrutura-Alvo
+
+```
+ta-quanto-project/
+├── app/                    # Expo Router — NÃO mexer na estrutura de pastas
+│   ├── (tabs)/
+│   ├── auth/
+│   └── ...
+│
+├── src/                    # [NOVO] Camadas de Clean Architecture
+│   ├── domain/             # Fase 1 — Entidades + interfaces de repositório
+│   │   ├── entities/       # Price, Product, User, Supermarket, Basket, SavedList
+│   │   └── repositories/   # IPriceRepository, IProductRepository, IUserRepository...
+│   │
+│   ├── application/        # Fase 3 — Use Cases
+│   │   └── use-cases/
+│   │       ├── prices/
+│   │       ├── products/
+│   │       ├── users/
+│   │       ├── basket/
+│   │       └── auth/
+│   │
+│   └── infrastructure/     # Fase 2 — Implementações concretas
+│       ├── supabase/       # Repositórios que falam com Supabase
+│       ├── storage/        # AsyncStorage adapters
+│       └── external/       # APIs externas (Cosmos, OpenFoodFacts, UPCitemdb)
+│
+├── context/                # Fase 4 — Contexts refatorados (chamam use cases)
+├── components/             # Permanecem como estão
+├── types/                  # Permanecem (serão aproveitados no domain)
+└── utils/                  # Fase 5 — Esvaziado gradualmente
+```
+
+---
+
+## ⚠️ Segurança (Já feito / Pendente)
+
+- [x] Remover SQLs do tracking do Git (`git rm --cached`)
+- [x] Remover `tunnel_url*.txt` do tracking
+- [x] Atualizar `.gitignore` para cobrir `server/*.txt`
+- [ ] Criar `.env.example` com placeholders
+- [ ] Verificar histórico de commits para `.env` vazado (`git log --all --full-history -- .env`)
+- [ ] Rotacionar `EXPO_PUBLIC_COSMOS_API_TOKEN` se o repositório for/foi público
+
+---
+
+## FASE 1 — Domínio (Domain Layer)
+
+> **Objetivo:** Criar as entidades e interfaces de repositório. Zero risco — apenas novos arquivos.
+> **Critério de conclusão:** Todos os arquivos criados, TypeScript compila sem erros.
+
+### Checklist
+
+#### `src/domain/entities/`
+- [x] `Price.ts` — entidade Price com tipos estritos (substitui `types/price.ts`)
+- [x] `Product.ts` — entidade Product
+- [x] `User.ts` — entidade User (substitui `types/user.ts`)
+- [x] `Supermarket.ts` — entidade Supermarket (substitui `types/supermarket.ts`)
+- [x] `Basket.ts` — entidade BasketItem + SavedBasket + SavedBasketItem
+- [x] `index.ts` — re-exporta tudo
+
+#### `src/domain/repositories/`
+- [x] `IPriceRepository.ts` — `getAll()`, `getByBarcode()`, `getByUser()`, `add()`, `batchUpload()`
+- [x] `IProductRepository.ts` — `getByBarcode()`, `save()`, `searchExternal()`
+- [x] `IUserRepository.ts` — `getById()`, `save()`, `uploadAvatar()`
+- [x] `ISupermarketRepository.ts` — `getAll()`, `add()`, `getNearest()`
+- [x] `IBasketRepository.ts` — `getItems()`, `addItem()`, `removeItem()`, `clear()`
+- [x] `ISavedBasketRepository.ts` — `getAll()`, `create()`, `update()`, `delete()`, `rename()`, `getItems()`
+- [x] `IAuthService.ts` — `signIn()`, `signUp()`, `signOut()`, `getSession()`
+- [x] `index.ts` — re-exporta tudo
+
+**Status: `[x]` Concluído**
+
+---
+
+## FASE 2 — Infraestrutura (Infrastructure Layer)
+
+> **Objetivo:** Implementar os repositórios concretos que satisfazem as interfaces do domínio.
+> **Critério de conclusão:** Cada implementação é testável de forma isolada, sem importar diretamente nas telas.
+
+### Checklist
+
+#### `src/infrastructure/supabase/`
+- [x] `SupabasePriceRepository.ts` — migra `utils/api.ts` → `getPrices`, `addPrice`, `batchUpload`
+- [x] `SupabaseProductRepository.ts` — migra lógica de produto do `utils/api.ts`
+- [x] `SupabaseUserRepository.ts` — migra `getUser`, `saveUser`, `uploadAvatar`
+- [x] `SupabaseSupermarketRepository.ts` — migra `services/supermarketService.ts`
+- [x] `SupabaseBasketRepository.ts` — migra `utils/basketService.ts` (basket_items)
+- [x] `SupabaseSavedBasketRepository.ts` — migra `utils/basketService.ts` (saved_baskets RPC)
+- [x] `SupabaseAuthService.ts` — migra `context/AuthContext.tsx` (signIn, signUp, OAuth)
+- [x] `index.ts` — exporta instâncias singleton
+
+#### `src/infrastructure/storage/`
+- [x] `AsyncStoragePriceRepository.ts` — cache local de preços (migra `utils/storage.ts`)
+- [x] `AsyncStorageUserRepository.ts` — cache local de perfil
+- [x] `AsyncStorageSupermarketRepository.ts` — cache local de supermercados
+- [x] `AsyncStorageBasketRepository.ts` — sessão do carrinho local
+- [x] `index.ts` — exporta instâncias
+
+#### `src/infrastructure/external/`
+- [x] `CosmosProductService.ts` — `fetchProductFromCosmos()` do `utils/api.ts`
+- [x] `OpenFoodFactsProductService.ts` — `fetchProductFromOpenFoodFacts()` do `utils/api.ts`
+- [x] `UPCItemDBProductService.ts` — `fetchProductFromUPCitemdb()` do `utils/api.ts`
+- [x] `index.ts`
+
+**Status: `[x]` Concluído**
+
+---
+
+## FASE 3 — Casos de Uso (Application Layer)
+
+> **Objetivo:** Orquestrar o fluxo de negócio usando os repositórios. Sem dependência direta de Supabase ou AsyncStorage.
+> **Critério de conclusão:** Use cases retornam dados corretos e são testáveis com mocks.
+
+### Checklist
+
+#### `src/application/use-cases/prices/`
+- [ ] `GetCommunityPricesUseCase.ts` — busca remota + fallback local
+- [ ] `GetPricesByBarcodeUseCase.ts`
+- [ ] `RegisterPriceUseCase.ts` — salva local + sync remoto (offline-first)
+
+#### `src/application/use-cases/products/`
+- [ ] `LookupProductUseCase.ts` — cache → OpenFoodFacts → UPCitemdb → Cosmos
+- [ ] `GetProductsBySupermarketUseCase.ts`
+
+#### `src/application/use-cases/users/`
+- [ ] `GetUserProfileUseCase.ts` — local → remoto, com fallback
+- [ ] `SaveUserProfileUseCase.ts` — local + remoto
+- [ ] `UploadAvatarUseCase.ts`
+
+#### `src/application/use-cases/basket/`
+- [ ] `AddToBasketUseCase.ts`
+- [ ] `RemoveFromBasketUseCase.ts`
+- [ ] `ClearBasketUseCase.ts`
+- [ ] `SaveBasketUseCase.ts` (named basket)
+- [ ] `GetSavedBasketsUseCase.ts`
+- [ ] `LoadSavedBasketUseCase.ts`
+- [ ] `DeleteSavedBasketUseCase.ts`
+- [ ] `RenameBasketUseCase.ts`
+
+#### `src/application/use-cases/auth/`
+- [ ] `SignInWithEmailUseCase.ts`
+- [ ] `SignUpWithEmailUseCase.ts`
+- [ ] `SignInWithGoogleUseCase.ts`
+- [ ] `SignOutUseCase.ts`
+
+#### `src/application/use-cases/supermarkets/`
+- [ ] `GetSupermarketsUseCase.ts`
+- [ ] `GetNearestSupermarketUseCase.ts`
+
+**Status: `[ ]` Não iniciado**
+
+---
+
+## FASE 4 — Apresentação (Presentation Wiring)
+
+> **Objetivo:** Reconectar os Contexts e telas para usar os use cases, eliminando imports diretos de Supabase/AsyncStorage fora da infra.
+> **Critério de conclusão:** Nenhuma tela importa Supabase diretamente. `utils/` está vazio ou apenas com helpers puros.
+
+### Checklist
+
+#### Contexts refatorados
+- [ ] `AuthContext.tsx` — usa `SignInWithEmailUseCase`, `SignOutUseCase`, `SignInWithGoogleUseCase`
+- [ ] `SupermarketContext.tsx` — usa `AddToBasketUseCase`, `RemoveFromBasketUseCase`, etc.
+
+#### Telas (só ajuste de imports, lógica já nos use cases)
+- [ ] `app/(tabs)/index.tsx` — usa `GetCommunityPricesUseCase`
+- [ ] `app/(tabs)/shop.tsx` — usa casos de uso de basket
+- [ ] `app/(tabs)/profile.tsx` — usa `GetUserProfileUseCase`, `SaveUserProfileUseCase`
+- [ ] `app/scan.tsx` — usa `LookupProductUseCase`
+- [ ] `app/register.tsx` — usa `RegisterPriceUseCase`
+- [ ] `app/(tabs)/community.tsx` — usa `GetCommunityPricesUseCase`
+- [ ] `app/(tabs)/supermarkets.tsx` — usa `GetSupermarketsUseCase`
+
+#### Limpeza de `utils/`
+- [ ] Remover `utils/api.ts` (lógica migrada)
+- [ ] Remover `utils/storage.ts` (lógica migrada)
+- [ ] Remover `utils/basketService.ts` (migrado)
+- [ ] Remover `utils/syncService.ts` (migrado)
+- [ ] Remover `services/` (migrado para `src/`)
+- [ ] Manter: `utils/date.ts`, `utils/location.ts`, `utils/savings.ts`, `utils/i18n.ts`, `utils/gamification.ts` (helpers puros, sem infra)
+
+**Status: `[ ]` Não iniciado**
+
+---
+
+## FASE 5 — Qualidade & Funcionalidades Pendentes
+
+> **Objetivo:** Fechar débitos técnicos e implementar funcionalidades que faltam.
+
+### Checklist
+
+#### Qualidade
+- [ ] Renomear `package.json` `name` para `"ta-quanto"`
+- [ ] Remover IP hardcoded de `utils/api.ts` (linha 5)
+- [ ] Criar `.env.example`
+- [ ] Substituir `console.log` por logger condicional (`__DEV__`)
+- [ ] Atualizar testes para usar mocks dos repositórios
+- [ ] Atingir 80% de coverage nos use cases
+
+#### Funcionalidades Pendentes
+- [ ] Community tab — dados do Supabase em vez de só local
+- [ ] Dark Mode — funcional (não só UI)
+- [ ] Notificações — implementar
+- [ ] Streak e Ranking — dados reais
+- [ ] Atividade Recente no Perfil — decidir se volta
+
+**Status: `[ ]` Não iniciado**
+
+---
+
+## Regras de Implementação
+
+1. **O app deve compilar e funcionar após cada fase**
+2. **Nenhum import direto de `@supabase/supabase-js` fora de `src/infrastructure/`**
+3. **Nenhum import direto de `AsyncStorage` fora de `src/infrastructure/storage/`**
+4. **Use cases recebem repositórios via parâmetro (injeção de dependência simples)**
+5. **Sem `any` nas interfaces de domínio**
+6. **Cada fase tem commit próprio antes de avançar**

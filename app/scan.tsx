@@ -122,7 +122,7 @@ export default function ScanScreen() {
 
         const prices = await getPricesByBarcode(data);
         // Check if price exists for CURRENT supermarket
-        const hasPriceInCurrentSupermarket = selectedSupermarket && prices.some(p => p.supermarket === selectedSupermarket);
+        const hasPriceInCurrentSupermarket = selectedSupermarket && prices.some((p: PriceEntry) => p.supermarket === selectedSupermarket);
 
         if (hasPriceInCurrentSupermarket) {
           // Success - Redirect to Product Details

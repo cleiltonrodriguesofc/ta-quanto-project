@@ -1,74 +1,34 @@
-import { supabase } from './supabase';
+import {
+  getSupermarketsUseCase,
+  getNearestSupermarketUseCase,
+  getProductsBySupermarketUseCase,
+} from '@/src/application';
 import { Supermarket } from '@/types/supermarket';
-import { PriceEntry } from '@/types/price';
+import { getLocalSupermarkets } from './storage';
 
-export const getSupermarkets = async (): Promise<Supermarket[]> => {
-    try {
-        // 1. Get from Local Cache first (Instant)
-        const { getLocalSupermarkets, saveLocalSupermarkets } = await import('./storage');
-        const cachedSupermarkets = await getLocalSupermarkets();
+export async function fetchSupermarkets(): Promise<Supermarket[]> {
+  try {
+    const markets = await getSupermarketsUseCase.execute();
+    return markets as unknown as Supermarket[];
+  } catch (error) {
+    console.warn('[supermarketService] Fallback to local storage:', error);
+    return getLocalSupermarkets();
+  }
+}
 
-        // 2. Background Refresh
-        const refresh = async () => {
-            try {
-                const { data, error } = await supabase.from('supermarkets').select('*').order('name', { ascending: true });
-                if (!error && data) await saveLocalSupermarkets(data);
-            } catch { }
-        };
-        refresh();
+export async function findNearestSupermarket(
+  lat: number,
+  lon: number,
+): Promise<Supermarket | null> {
+  const market = await getNearestSupermarketUseCase.execute(lat, lon);
+  return market as unknown as Supermarket | null;
+}
 
-        if (cachedSupermarkets.length > 0) {
-            return cachedSupermarkets;
-        }
+export async function getProductsBySupermarketName(supermarketName: string) {
+  return getProductsBySupermarketUseCase.execute(supermarketName);
+}
 
-        // 3. First time fallback (wait once)
-        const { data } = await supabase.from('supermarkets').select('*').order('name', { ascending: true });
-        return data || [];
-    } catch (error) {
-        console.error('Unexpected error in getSupermarkets:', error);
-        const { getLocalSupermarkets } = await import('./storage');
-        return await getLocalSupermarkets();
-    }
-};
-
-export const getSupermarketById = async (id: string): Promise<Supermarket | null> => {
-    try {
-        // Note: If ID is not a valid UUID, Supabase might throw.
-        const { data, error } = await supabase
-            .from('supermarkets')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) {
-            console.error('Error fetching supermarket by id:', error);
-            return null;
-        }
-
-        return data;
-    } catch (error) {
-        console.error('Unexpected error fetching supermarket details:', error);
-        return null;
-    }
-};
-
-export const getProductsBySupermarketName = async (supermarketName: string): Promise<PriceEntry[]> => {
-    try {
-        // We filter prices by the supermarket column (which stores the name)
-        const { data, error } = await supabase
-            .from('prices')
-            .select('*')
-            .eq('supermarket', supermarketName)
-            .order('productName', { ascending: true });
-
-        if (error) {
-            console.error(`Error fetching products for ${supermarketName}:`, error);
-            return [];
-        }
-
-        return data || [];
-    } catch (error) {
-        console.error(`Unexpected error fetching products for ${supermarketName}:`, error);
-        return [];
-    }
-};
+export async function getSupermarketById(id: string | number): Promise<Supermarket | null> {
+  const markets = await fetchSupermarkets();
+  return markets.find(m => String(m.id) === String(id)) || null;
+}
