@@ -1,0 +1,17 @@
+# Normalize all text files to LF (Unix line endings)
+* text=auto eol=lf
+
+# Explicitly binary files — never convert
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.apk binary
+*.aab binary
+*.jks binary
+*.p12 binary
+*.keystore binary
