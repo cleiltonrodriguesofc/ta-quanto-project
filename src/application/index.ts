@@ -1,12 +1,11 @@
 import {
-  supabasePriceRepository,
-  supabaseProductRepository,
-  supabaseUserRepository,
-  supabaseSupermarketRepository,
-  supabaseBasketRepository,
-  supabaseSavedBasketRepository,
-  supabaseAuthService,
-} from '@/src/infrastructure/supabase';
+  apiPriceRepository,
+  apiProductRepository,
+  apiUserRepository,
+  apiSupermarketRepository,
+  apiSavedBasketRepository,
+  apiAuthService,
+} from '@/src/infrastructure/api';
 
 import {
   asyncStoragePriceRepository,
@@ -33,56 +32,56 @@ import {
 
 // Pre-instantiated use cases with default dependencies
 export const getCommunityPricesUseCase = new GetCommunityPricesUseCase(
-  supabasePriceRepository,
+  apiPriceRepository,
   asyncStoragePriceRepository,
 );
 
 export const getPricesByBarcodeUseCase = new GetPricesByBarcodeUseCase(
-  supabasePriceRepository,
+  apiPriceRepository,
   asyncStoragePriceRepository,
 );
 
 export const registerPriceUseCase = new RegisterPriceUseCase(
   asyncStoragePriceRepository,
-  supabasePriceRepository,
+  apiPriceRepository,
 );
 
-export const lookupProductUseCase = new LookupProductUseCase(supabaseProductRepository);
+export const lookupProductUseCase = new LookupProductUseCase(apiProductRepository);
 
 export const getProductsBySupermarketUseCase = new GetProductsBySupermarketUseCase(
-  supabasePriceRepository,
+  apiPriceRepository,
 );
 
 export const getUserProfileUseCase = new GetUserProfileUseCase(
-  supabaseUserRepository,
+  apiUserRepository,
   asyncStorageUserRepository,
 );
 
 export const saveUserProfileUseCase = new SaveUserProfileUseCase(
   asyncStorageUserRepository,
-  supabaseUserRepository,
+  apiUserRepository,
 );
 
-export const uploadAvatarUseCase = new UploadAvatarUseCase(supabaseUserRepository);
+export const uploadAvatarUseCase = new UploadAvatarUseCase(apiUserRepository);
 
 export const manageBasketUseCase = new ManageBasketUseCase(
   asyncStorageBasketRepository,
-  supabaseBasketRepository,
+  apiSavedBasketRepository as any, // Not really used inside local manageBasketUseCase unless it syncs
 );
 
 export const manageSavedBasketUseCase = new ManageSavedBasketUseCase(
-  supabaseSavedBasketRepository,
+  apiSavedBasketRepository,
 );
 
-export const authUseCases = new AuthUseCases(supabaseAuthService);
+export const authUseCases = new AuthUseCases(apiAuthService);
 
 export const getSupermarketsUseCase = new GetSupermarketsUseCase(
-  supabaseSupermarketRepository,
+  apiSupermarketRepository,
   asyncStorageSupermarketRepository,
 );
 
 export const getNearestSupermarketUseCase = new GetNearestSupermarketUseCase(
-  supabaseSupermarketRepository,
+  apiSupermarketRepository,
 );
 
 export * from './use-cases';

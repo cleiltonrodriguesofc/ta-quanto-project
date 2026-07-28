@@ -313,22 +313,21 @@ backend/
 
 ---
 
-## FASE 7 — Integração Frontend ↔ Backend `[ ]` Pendente
-
-## FASE 7 — Migração do Frontend para usar FastAPI `[ ]` Pendente
+## FASE 7 — Migração do Frontend para usar FastAPI `[x]` Concluído em 2026-07-28
 
 > **Objetivo:** Trocar chamadas diretas ao Supabase no frontend por chamadas à nossa API FastAPI.
 
 ### Checklist
 
-- [ ] Criar `src/infrastructure/api/` — HTTP client (fetch/axios) para o FastAPI
-- [ ] `ApiPriceRepository.ts` — implementa `IPriceRepository` via HTTP
-- [ ] `ApiProductRepository.ts` — implementa `IProductRepository` via HTTP
-- [ ] `ApiUserRepository.ts` — implementa `IUserRepository` via HTTP
-- [ ] `ApiBasketRepository.ts` — implementa `IBasketRepository` via HTTP
-- [ ] `ApiSavedBasketRepository.ts`
-- [ ] Atualizar `src/application/index.ts` para usar repositórios da API (em vez de Supabase direto)
-- [ ] Remover `EXPO_PUBLIC_SUPABASE_KEY` do `.env` do frontend (a chave fica só no backend)
+- [x] Criar `src/infrastructure/api/` — HTTP client (axios com interceptors para JWT)
+- [x] `ApiPriceRepository.ts` — implementa `IPriceRepository` via HTTP
+- [x] `ApiProductRepository.ts` — implementa `IProductRepository` via HTTP
+- [x] `ApiUserRepository.ts` — implementa `IUserRepository` via HTTP
+- [x] `ApiSavedBasketRepository.ts` — implementa `ISavedBasketRepository`
+- [x] `ApiSupermarketRepository.ts` e `ApiAuthService.ts`
+- [x] Atualizar `src/application/index.ts` para usar repositórios da API (em vez de Supabase direto)
+- [x] Atualizar `package.json` com `axios` e `jwt-decode`
+- [x] Remover chaves do Supabase do `.env` do frontend (a chave fica só no backend)
 
 ---
 
