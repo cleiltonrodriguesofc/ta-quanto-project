@@ -46,3 +46,13 @@ tsc_*.txt
 # server debug / tunnel files
 server/tunnel_url*.txt
 server/*.txt
+
+# backend Python
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/

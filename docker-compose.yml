@@ -1,20 +1,39 @@
+version: "3.9"
+
 services:
-  app:
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-      target: runner
     ports:
-      - "8081:8081"
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "8000:8000"
     environment:
-      - NODE_ENV=development
-      - EXPO_PUBLIC_API_URL=${EXPO_PUBLIC_API_URL}
-      - EXPO_PUBLIC_USE_SUPABASE=${EXPO_PUBLIC_USE_SUPABASE}
-      - EXPO_PUBLIC_SUPABASE_URL=${EXPO_PUBLIC_SUPABASE_URL}
-      - EXPO_PUBLIC_SUPABASE_ANON_KEY=${EXPO_PUBLIC_SUPABASE_ANON_KEY}
-    env_file:
-      - .env
-    command: npx expo start --host lan
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: HS256
+      COSMOS_API_TOKEN: ${COSMOS_API_TOKEN:-}
+      ENVIRONMENT: development
+    volumes:
+      - ./backend/app:/app/app
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Descomente para rodar PostgreSQL local (desenvolvimento sem Supabase)
+  # db:
+  #   image: postgres:15-alpine
+  #   environment:
+  #     POSTGRES_USER: taquanto
+  #     POSTGRES_PASSWORD: taquanto_dev
+  #     POSTGRES_DB: taquanto
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./database/sql:/docker-entrypoint-initdb.d
+
+# volumes:
+#   postgres_data:

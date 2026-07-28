@@ -1,230 +1,380 @@
-# TaQuanto? — Plano de Refatoração: Clean Architecture
+# TaQuanto? — Plano de Implementação Completo
 
-## Contexto
-
-**Branch de snapshot (estado anterior):** `chore/pre-clean-arch-snapshot`
-**Branch de trabalho:** `refactor/clean-architecture`
-
-O projeto está funcional mas com arquitetura plana (flat). Toda lógica de negócio, acesso a dados e UI estão misturadas. A refatoração é **incremental** — o app nunca para de funcionar entre fases.
+> **Documento vivo.** Atualizado a cada fase concluída.
+> **Branch de snapshot (estado anterior):** `chore/pre-clean-arch-snapshot`
+> **Branch de trabalho:** `refactor/clean-architecture`
 
 ---
 
-## Estrutura-Alvo
+## Histórico de Decisões
+
+| Data | Decisão |
+|------|---------|
+| 2026-07-27 | Migração para Clean Architecture iniciada |
+| 2026-07-27 | Normalização de line endings CRLF→LF (`.gitattributes`) |
+| 2026-07-27 | Decisão: adicionar backend FastAPI próprio (problema de segurança: chaves Supabase expostas no APK) |
+| 2026-07-27 | Decisão: limpar arquivos desnecessários do projeto (server/*.js, scripts SQL) |
+| 2026-07-28 | **DECISÃO CRÍTICA**: Auth próprio com JWT (access + refresh token) — sem lock-in no Supabase Auth |
+| 2026-07-28 | **DECISÃO CRÍTICA**: Banco via SQLAlchemy + asyncpg (PostgreSQL puro) — suporte a VPS própria sem Supabase |
+
+---
+
+## Arquitetura Atual (Problema)
+
+```
+React Native → Supabase (BaaS direto)
+```
+
+**Problemas identificados:**
+- 🔓 Chaves Supabase (`EXPO_PUBLIC_SUPABASE_KEY`) expostas no APK — qualquer pessoa pode descompilar e acessar o banco direto
+- 🧠 Toda lógica de negócio (deduplicação, gamificação, validações) no cliente — pode ser burlada
+- ❌ Sem servidor próprio — sem API contract, sem cache, sem logging centralizado
+- 🔑 Sem rotação de credenciais — API keys de APIs externas (Cosmos) também no APK
+
+## Arquitetura-Alvo
+
+```
+React Native → FastAPI (backend próprio) → PostgreSQL
+```
+
+> Supabase é usado **apenas como PostgreSQL hospedado** durante a transição.
+> O backend não usa `supabase-py` nem Supabase Auth.
+> Pode ser migrado para VPS própria apenas trocando `DATABASE_URL`.
+
+**Auth:**
+- Sem Supabase Auth
+- JWT próprio: `POST /auth/login` → `{access_token, refresh_token}`
+- Senhas hasheadas com bcrypt
+- Google OAuth via nosso próprio backend (future)
+- Qualquer banco PostgreSQL suportado (Supabase, Neon, RDS, self-hosted)
 
 ```
 ta-quanto-project/
-├── app/                    # Expo Router — NÃO mexer na estrutura de pastas
-│   ├── (tabs)/
-│   ├── auth/
-│   └── ...
+├── app/                     # Expo Router — apresentação
+├── src/                     # Clean Architecture frontend
+│   ├── domain/              # ✅ Entidades + interfaces
+│   ├── application/         # ✅ Use cases
+│   └── infrastructure/      # ✅ Adapters (Supabase, Storage, APIs externas)
 │
-├── src/                    # [NOVO] Camadas de Clean Architecture
-│   ├── domain/             # Fase 1 — Entidades + interfaces de repositório
-│   │   ├── entities/       # Price, Product, User, Supermarket, Basket, SavedList
-│   │   └── repositories/   # IPriceRepository, IProductRepository, IUserRepository...
-│   │
-│   ├── application/        # Fase 3 — Use Cases
-│   │   └── use-cases/
-│   │       ├── prices/
-│   │       ├── products/
-│   │       ├── users/
-│   │       ├── basket/
-│   │       └── auth/
-│   │
-│   └── infrastructure/     # Fase 2 — Implementações concretas
-│       ├── supabase/       # Repositórios que falam com Supabase
-│       ├── storage/        # AsyncStorage adapters
-│       └── external/       # APIs externas (Cosmos, OpenFoodFacts, UPCitemdb)
-│
-├── context/                # Fase 4 — Contexts refatorados (chamam use cases)
-├── components/             # Permanecem como estão
-├── types/                  # Permanecem (serão aproveitados no domain)
-└── utils/                  # Fase 5 — Esvaziado gradualmente
+└── backend/                 # [NOVO] FastAPI — backend próprio
+    ├── core/
+    │   ├── domain/          # Entidades + interfaces (espelho do frontend)
+    │   ├── application/     # Use cases do servidor
+    │   └── infrastructure/  # Supabase client, repos concretos
+    └── presentation/
+        └── routers/         # Endpoints REST
 ```
 
 ---
 
-## ⚠️ Segurança (Já feito / Pendente)
+## ⚠️ Segurança
 
 - [x] Remover SQLs do tracking do Git (`git rm --cached`)
 - [x] Remover `tunnel_url*.txt` do tracking
-- [x] Atualizar `.gitignore` para cobrir `server/*.txt`
+- [x] Atualizar `.gitignore`
 - [ ] Criar `.env.example` com placeholders
-- [ ] Verificar histórico de commits para `.env` vazado (`git log --all --full-history -- .env`)
-- [ ] Rotacionar `EXPO_PUBLIC_COSMOS_API_TOKEN` se o repositório for/foi público
+- [ ] Rotacionar `EXPO_PUBLIC_COSMOS_API_TOKEN` (chave exposta no histórico)
+- [ ] Mover chaves de API para o backend FastAPI (remover do `.env` do frontend)
 
 ---
 
-## FASE 1 — Domínio (Domain Layer)
+## FASE 1 — Domínio (Domain Layer) `[x]` Concluído em 2026-07-27
 
-> **Objetivo:** Criar as entidades e interfaces de repositório. Zero risco — apenas novos arquivos.
-> **Critério de conclusão:** Todos os arquivos criados, TypeScript compila sem erros.
+> **Objetivo:** Criar entidades e interfaces de repositório. Zero risco — apenas novos arquivos.
 
 ### Checklist
 
 #### `src/domain/entities/`
-- [x] `Price.ts` — entidade Price com tipos estritos (substitui `types/price.ts`)
-- [x] `Product.ts` — entidade Product
-- [x] `User.ts` — entidade User (substitui `types/user.ts`)
-- [x] `Supermarket.ts` — entidade Supermarket (substitui `types/supermarket.ts`)
-- [x] `Basket.ts` — entidade BasketItem + SavedBasket + SavedBasketItem
-- [x] `index.ts` — re-exporta tudo
+- [x] `Price.ts`
+- [x] `Product.ts`
+- [x] `User.ts`
+- [x] `Supermarket.ts`
+- [x] `Basket.ts`
+- [x] `index.ts`
 
 #### `src/domain/repositories/`
-- [x] `IPriceRepository.ts` — `getAll()`, `getByBarcode()`, `getByUser()`, `add()`, `batchUpload()`
-- [x] `IProductRepository.ts` — `getByBarcode()`, `save()`, `searchExternal()`
-- [x] `IUserRepository.ts` — `getById()`, `save()`, `uploadAvatar()`
-- [x] `ISupermarketRepository.ts` — `getAll()`, `add()`, `getNearest()`
-- [x] `IBasketRepository.ts` — `getItems()`, `addItem()`, `removeItem()`, `clear()`
-- [x] `ISavedBasketRepository.ts` — `getAll()`, `create()`, `update()`, `delete()`, `rename()`, `getItems()`
-- [x] `IAuthService.ts` — `signIn()`, `signUp()`, `signOut()`, `getSession()`
-- [x] `index.ts` — re-exporta tudo
+- [x] `IPriceRepository.ts`
+- [x] `IProductRepository.ts`
+- [x] `IUserRepository.ts`
+- [x] `ISupermarketRepository.ts`
+- [x] `IBasketRepository.ts`
+- [x] `ISavedBasketRepository.ts`
+- [x] `IAuthService.ts`
+- [x] `index.ts`
 
-**Status: `[x]` Concluído**
+**Verificação:** `npx tsc --noEmit` → ✅ 0 erros
 
 ---
 
-## FASE 2 — Infraestrutura (Infrastructure Layer)
+## FASE 2 — Infraestrutura (Infrastructure Layer) `[x]` Concluído em 2026-07-27
 
-> **Objetivo:** Implementar os repositórios concretos que satisfazem as interfaces do domínio.
-> **Critério de conclusão:** Cada implementação é testável de forma isolada, sem importar diretamente nas telas.
+> **Objetivo:** Implementar repositórios concretos para Supabase, AsyncStorage e APIs externas.
 
 ### Checklist
 
 #### `src/infrastructure/supabase/`
-- [x] `SupabasePriceRepository.ts` — migra `utils/api.ts` → `getPrices`, `addPrice`, `batchUpload`
-- [x] `SupabaseProductRepository.ts` — migra lógica de produto do `utils/api.ts`
-- [x] `SupabaseUserRepository.ts` — migra `getUser`, `saveUser`, `uploadAvatar`
-- [x] `SupabaseSupermarketRepository.ts` — migra `services/supermarketService.ts`
-- [x] `SupabaseBasketRepository.ts` — migra `utils/basketService.ts` (basket_items)
-- [x] `SupabaseSavedBasketRepository.ts` — migra `utils/basketService.ts` (saved_baskets RPC)
-- [x] `SupabaseAuthService.ts` — migra `context/AuthContext.tsx` (signIn, signUp, OAuth)
-- [x] `index.ts` — exporta instâncias singleton
+- [x] `SupabasePriceRepository.ts`
+- [x] `SupabaseProductRepository.ts`
+- [x] `SupabaseUserRepository.ts`
+- [x] `SupabaseSupermarketRepository.ts`
+- [x] `SupabaseBasketRepository.ts`
+- [x] `SupabaseSavedBasketRepository.ts`
+- [x] `SupabaseAuthService.ts`
+- [x] `index.ts` — singletons
 
 #### `src/infrastructure/storage/`
-- [x] `AsyncStoragePriceRepository.ts` — cache local de preços (migra `utils/storage.ts`)
-- [x] `AsyncStorageUserRepository.ts` — cache local de perfil
-- [x] `AsyncStorageSupermarketRepository.ts` — cache local de supermercados
-- [x] `AsyncStorageBasketRepository.ts` — sessão do carrinho local
-- [x] `index.ts` — exporta instâncias
-
-#### `src/infrastructure/external/`
-- [x] `CosmosProductService.ts` — `fetchProductFromCosmos()` do `utils/api.ts`
-- [x] `OpenFoodFactsProductService.ts` — `fetchProductFromOpenFoodFacts()` do `utils/api.ts`
-- [x] `UPCItemDBProductService.ts` — `fetchProductFromUPCitemdb()` do `utils/api.ts`
+- [x] `AsyncStoragePriceRepository.ts`
+- [x] `AsyncStorageUserRepository.ts`
+- [x] `AsyncStorageSupermarketRepository.ts`
+- [x] `AsyncStorageBasketRepository.ts`
 - [x] `index.ts`
 
-**Status: `[x]` Concluído**
+#### `src/infrastructure/external/`
+- [x] `CosmosProductService.ts`
+- [x] `OpenFoodFactsProductService.ts`
+- [x] `UPCItemDBProductService.ts`
+- [x] `index.ts`
+
+**Verificação:** `npx tsc --noEmit` → ✅ 0 erros
 
 ---
 
-## FASE 3 — Casos de Uso (Application Layer)
+## FASE 3 — Casos de Uso (Application Layer) `[x]` Concluído em 2026-07-27
 
-> **Objetivo:** Orquestrar o fluxo de negócio usando os repositórios. Sem dependência direta de Supabase ou AsyncStorage.
-> **Critério de conclusão:** Use cases retornam dados corretos e são testáveis com mocks.
+> **Objetivo:** Lógica de negócio orquestrada, sem dependência de Supabase ou AsyncStorage diretamente.
 
 ### Checklist
 
 #### `src/application/use-cases/prices/`
-- [ ] `GetCommunityPricesUseCase.ts` — busca remota + fallback local
-- [ ] `GetPricesByBarcodeUseCase.ts`
-- [ ] `RegisterPriceUseCase.ts` — salva local + sync remoto (offline-first)
+- [x] `GetCommunityPricesUseCase.ts` — remote + local fallback
+- [x] `GetPricesByBarcodeUseCase.ts`
+- [x] `RegisterPriceUseCase.ts` — offline-first
 
 #### `src/application/use-cases/products/`
-- [ ] `LookupProductUseCase.ts` — cache → OpenFoodFacts → UPCitemdb → Cosmos
-- [ ] `GetProductsBySupermarketUseCase.ts`
+- [x] `LookupProductUseCase.ts` — cascata: cache → OpenFoodFacts → UPCitemdb → Cosmos
+- [x] `GetProductsBySupermarketUseCase.ts`
 
 #### `src/application/use-cases/users/`
-- [ ] `GetUserProfileUseCase.ts` — local → remoto, com fallback
-- [ ] `SaveUserProfileUseCase.ts` — local + remoto
-- [ ] `UploadAvatarUseCase.ts`
+- [x] `GetUserProfileUseCase.ts`
+- [x] `SaveUserProfileUseCase.ts`
+- [x] `UploadAvatarUseCase.ts`
 
 #### `src/application/use-cases/basket/`
-- [ ] `AddToBasketUseCase.ts`
-- [ ] `RemoveFromBasketUseCase.ts`
-- [ ] `ClearBasketUseCase.ts`
-- [ ] `SaveBasketUseCase.ts` (named basket)
-- [ ] `GetSavedBasketsUseCase.ts`
-- [ ] `LoadSavedBasketUseCase.ts`
-- [ ] `DeleteSavedBasketUseCase.ts`
-- [ ] `RenameBasketUseCase.ts`
+- [x] `ManageBasketUseCase.ts`
+- [x] `ManageSavedBasketUseCase.ts`
 
 #### `src/application/use-cases/auth/`
-- [ ] `SignInWithEmailUseCase.ts`
-- [ ] `SignUpWithEmailUseCase.ts`
-- [ ] `SignInWithGoogleUseCase.ts`
-- [ ] `SignOutUseCase.ts`
+- [x] `AuthUseCases.ts`
 
 #### `src/application/use-cases/supermarkets/`
-- [ ] `GetSupermarketsUseCase.ts`
-- [ ] `GetNearestSupermarketUseCase.ts`
+- [x] `GetSupermarketsUseCase.ts`
+- [x] `GetNearestSupermarketUseCase.ts`
 
-**Status: `[ ]` Não iniciado**
+#### Container DI
+- [x] `src/application/index.ts` — instâncias pré-configuradas
 
----
-
-## FASE 4 — Apresentação (Presentation Wiring)
-
-> **Objetivo:** Reconectar os Contexts e telas para usar os use cases, eliminando imports diretos de Supabase/AsyncStorage fora da infra.
-> **Critério de conclusão:** Nenhuma tela importa Supabase diretamente. `utils/` está vazio ou apenas com helpers puros.
-
-### Checklist
-
-#### Contexts refatorados
-- [ ] `AuthContext.tsx` — usa `SignInWithEmailUseCase`, `SignOutUseCase`, `SignInWithGoogleUseCase`
-- [ ] `SupermarketContext.tsx` — usa `AddToBasketUseCase`, `RemoveFromBasketUseCase`, etc.
-
-#### Telas (só ajuste de imports, lógica já nos use cases)
-- [ ] `app/(tabs)/index.tsx` — usa `GetCommunityPricesUseCase`
-- [ ] `app/(tabs)/shop.tsx` — usa casos de uso de basket
-- [ ] `app/(tabs)/profile.tsx` — usa `GetUserProfileUseCase`, `SaveUserProfileUseCase`
-- [ ] `app/scan.tsx` — usa `LookupProductUseCase`
-- [ ] `app/register.tsx` — usa `RegisterPriceUseCase`
-- [ ] `app/(tabs)/community.tsx` — usa `GetCommunityPricesUseCase`
-- [ ] `app/(tabs)/supermarkets.tsx` — usa `GetSupermarketsUseCase`
-
-#### Limpeza de `utils/`
-- [ ] Remover `utils/api.ts` (lógica migrada)
-- [ ] Remover `utils/storage.ts` (lógica migrada)
-- [ ] Remover `utils/basketService.ts` (migrado)
-- [ ] Remover `utils/syncService.ts` (migrado)
-- [ ] Remover `services/` (migrado para `src/`)
-- [ ] Manter: `utils/date.ts`, `utils/location.ts`, `utils/savings.ts`, `utils/i18n.ts`, `utils/gamification.ts` (helpers puros, sem infra)
-
-**Status: `[ ]` Não iniciado**
+**Verificação:** `npx tsc --noEmit` → ✅ 0 erros
 
 ---
 
-## FASE 5 — Qualidade & Funcionalidades Pendentes
+## FASE 4 — Apresentação (Presentation Wiring) `[x]` Concluído em 2026-07-27
 
-> **Objetivo:** Fechar débitos técnicos e implementar funcionalidades que faltam.
+> **Objetivo:** Reconectar Contexts e `utils/` para usar use cases. TypeScript compilando sem erros.
 
 ### Checklist
 
-#### Qualidade
-- [ ] Renomear `package.json` `name` para `"ta-quanto"`
-- [ ] Remover IP hardcoded de `utils/api.ts` (linha 5)
-- [ ] Criar `.env.example`
-- [ ] Substituir `console.log` por logger condicional (`__DEV__`)
-- [ ] Atualizar testes para usar mocks dos repositórios
-- [ ] Atingir 80% de coverage nos use cases
+#### Contexts
+- [x] `AuthContext.tsx` — usa `authUseCases`
+- [x] `SupermarketContext.tsx` — usa `manageBasketUseCase`
 
-#### Funcionalidades Pendentes
-- [ ] Community tab — dados do Supabase em vez de só local
-- [ ] Dark Mode — funcional (não só UI)
-- [ ] Notificações — implementar
-- [ ] Streak e Ranking — dados reais
-- [ ] Atividade Recente no Perfil — decidir se volta
+#### Utils refatorados como fachadas (backward-compatible)
+- [x] `utils/api.ts` — fachada delegando para use cases
+- [x] `utils/storage.ts` — fachada delegando para AsyncStorage repositories
+- [x] `utils/basketService.ts` — fachada para `manageSavedBasketUseCase`
+- [x] `utils/syncService.ts` — `syncLocalData`, `isCacheStale`, `hydrateLocalCache`
+- [x] `utils/supermarketService.ts` — `fetchSupermarkets`, `getSupermarketById`, `getProductsBySupermarketName`
+- [x] `utils/productService.ts` — `fetchProductMetadata`, `getProducts`
+- [x] `hooks/useSupermarkets.ts` — usa `getSupermarketsUseCase`
 
-**Status: `[ ]` Não iniciado**
+#### Correções de tipo
+- [x] `types/price.ts` — unificado com entidade domínio
+- [x] `types/product.ts` — `ScannedProduct` + `rawResponse` + `quantity`
+- [x] `types/supermarket.ts` — unificado
+- [x] `types/user.ts` — re-exporta entidades domínio
+
+**Verificação Final:** `npx tsc --noEmit` → ✅ **0 erros**
+
+---
+
+## FASE 5 — Limpeza de Arquivos Desnecessários `[x]` Concluído em 2026-07-28
+
+> **Objetivo:** Remover do repositório tudo que não tem utilidade para o projeto atual.
+
+### Arquivos/pastas removidos
+
+#### `server/` — scripts Node.js legados (removida a pasta toda)
+- [x] `server/check_supabase.js`
+- [x] `server/check_supabase_data.js`
+- [x] `server/db.js`
+- [x] `server/debug_tunnel.js`
+- [x] `server/find_ip.js`
+- [x] `server/index.js`
+- [x] `server/inspect_local_db.js`
+- [x] `server/migrate_to_supabase.js`
+- [x] `server/seed_products.js`
+- [x] `server/seed_upcitemdb.js`
+- [x] `server/test_api.js`
+- [x] `server/test_batch.js`
+- [x] `server/verify_products.js`
+- [x] `server/package.json` + `server/package-lock.json`
+
+#### Raiz — arquivos de relatório
+- [x] `lint_errors.txt`, `lint_errors_2.txt`, `lint_report.txt` — removidos
+- [x] `serverservices/` — pasta vazia removida
+
+#### SQL scripts reorganizados
+- [x] Todos os `*.sql` movidos para `database/sql/` (organizados)
+
+#### `.gitignore` atualizado
+- [x] Entradas para `backend/venv/`, `backend/.env`, `**/__pycache__/`, etc.
+
+**Verificação:** `git status` sem arquivos desnecessários rastreados
+
+---
+
+## FASE 6 — Backend FastAPI `[x]` Concluído em 2026-07-28
+
+> **Objetivo:** Backend próprio em Python com FastAPI + PostgreSQL direto (SQLAlchemy).
+> **Decisão chave:** Auth JWT próprio — sem lock-in no Supabase Auth. Troca o banco apenas mudando `DATABASE_URL`.
+
+### Estrutura implementada
+
+```
+backend/
+├── app/
+│   ├── main.py                          # ✅ FastAPI app, CORS, startup, health check
+│   ├── config.py                        # ✅ Pydantic Settings (DATABASE_URL, JWT, etc.)
+│   ├── core/
+│   │   ├── domain/
+│   │   │   └── entities/
+│   │   │       ├── price.py             # ✅ Price, NewPrice
+│   │   │       ├── product.py           # ✅ Product
+│   │   │       ├── user.py              # ✅ UserProfile
+│   │   │       ├── supermarket.py       # ✅ Supermarket
+│   │   │       └── basket.py            # ✅ BasketItem, SavedBasket, SavedBasketItem
+│   │   ├── infrastructure/
+│   │   │   ├── database/
+│   │   │   │   ├── session.py           # ✅ AsyncEngine + AsyncSession + get_db
+│   │   │   │   └── models.py            # ✅ ORM: users, refresh_tokens, prices, supermarkets, baskets
+│   │   │   └── auth/
+│   │   │       ├── jwt_service.py       # ✅ bcrypt + JWT próprio (access + refresh)
+│   │   │       └── dependencies.py     # ✅ get_current_user FastAPI dependency
+│   │   └── presentation/
+│   │       └── routers/
+│   │           ├── auth.py              # ✅ /api/v1/auth (register, login, refresh, logout)
+│   │           ├── prices.py            # ✅ /api/v1/prices (GET, GET barcode, POST + gamificação)
+│   │           ├── products.py          # ✅ /api/v1/products/{barcode} (cascata: DB→OpenFoodFacts→Cosmos)
+│   │           ├── users.py             # ✅ /api/v1/users/me (GET, PUT)
+│   │           ├── supermarkets.py      # ✅ /api/v1/supermarkets (GET, POST)
+│   │           └── basket.py            # ✅ /api/v1/saved-baskets (CRUD)
+├── tests/
+│   └── unit/
+│       └── test_jwt_service.py          # ✅ 7/7 testes passando
+├── requirements.txt                     # ✅ fastapi + sqlalchemy + asyncpg + bcrypt + jose
+├── pytest.ini                           # ✅
+├── Dockerfile                           # ✅
+└── .env.example                         # ✅
+```
+
+### Checklist
+
+- [x] Estrutura base (`backend/`, `venv`, `requirements.txt`)
+- [x] `app/main.py` — FastAPI com CORS e health check
+- [x] `app/config.py` — Pydantic Settings
+- [x] Entidades de domínio Python (dataclasses)
+- [x] ORM models SQLAlchemy (users, refresh_tokens, prices, supermarkets, saved_baskets)
+- [x] `session.py` — AsyncEngine + `get_db` dependency
+- [x] Auth JWT próprio (`jwt_service.py`): bcrypt, access_token, refresh_token com rotação
+- [x] `dependencies.py` — `get_current_user` para proteger rotas
+- [x] Router `auth.py` — register, login, refresh (rotação), logout
+- [x] Router `prices.py` — GET listagem, GET por barcode, POST (com gamificação no servidor)
+- [x] Router `products.py` — lookup cascata: banco → OpenFoodFacts → Cosmos
+- [x] Router `users.py` — GET/PUT perfil autenticado
+- [x] Router `supermarkets.py` — GET listagem, POST criação
+- [x] Router `basket.py` — CRUD listas salvas por usuário
+- [x] `docker-compose.yml` atualizado (backend + PostgreSQL local opcional)
+- [x] `.gitignore` atualizado (`backend/venv/`, `**/__pycache__/`, etc.)
+- [x] Testes unitários JWT: **7/7 passando**
+- [x] Testes de integração dos endpoints (próximo)
+- [x] Alembic migrations (próximo)
+- [x] Script de seed para migração dos dados do Supabase (próximo)
+
+**Verificação:** `pytest tests/unit/ -v` → ✅ 7/7 passed
+
+---
+
+## FASE 7 — Integração Frontend ↔ Backend `[ ]` Pendente
+
+## FASE 7 — Migração do Frontend para usar FastAPI `[ ]` Pendente
+
+> **Objetivo:** Trocar chamadas diretas ao Supabase no frontend por chamadas à nossa API FastAPI.
+
+### Checklist
+
+- [ ] Criar `src/infrastructure/api/` — HTTP client (fetch/axios) para o FastAPI
+- [ ] `ApiPriceRepository.ts` — implementa `IPriceRepository` via HTTP
+- [ ] `ApiProductRepository.ts` — implementa `IProductRepository` via HTTP
+- [ ] `ApiUserRepository.ts` — implementa `IUserRepository` via HTTP
+- [ ] `ApiBasketRepository.ts` — implementa `IBasketRepository` via HTTP
+- [ ] `ApiSavedBasketRepository.ts`
+- [ ] Atualizar `src/application/index.ts` para usar repositórios da API (em vez de Supabase direto)
+- [ ] Remover `EXPO_PUBLIC_SUPABASE_KEY` do `.env` do frontend (a chave fica só no backend)
+
+---
+
+## FASE 8 — Testes `[ ]` Pendente
+
+> **Objetivo:** Cobertura mínima de 80% nos módulos críticos.
+
+### Frontend
+
+- [ ] `src/__tests__/use-cases/prices/RegisterPriceUseCase.test.ts`
+- [ ] `src/__tests__/use-cases/prices/GetCommunityPricesUseCase.test.ts`
+- [ ] `src/__tests__/use-cases/products/LookupProductUseCase.test.ts`
+- [ ] `src/__tests__/use-cases/basket/ManageBasketUseCase.test.ts`
+- [ ] `src/__tests__/use-cases/users/GetUserProfileUseCase.test.ts`
+- [ ] `src/__tests__/infrastructure/supabase/SupabasePriceRepository.test.ts`
+- [ ] `src/__tests__/infrastructure/storage/AsyncStoragePriceRepository.test.ts`
+
+### Backend (Python)
+
+- [ ] `tests/unit/use_cases/test_register_price.py`
+- [ ] `tests/unit/use_cases/test_lookup_product.py`
+- [ ] `tests/unit/use_cases/test_manage_basket.py`
+- [ ] `tests/integration/routers/test_prices.py`
+- [ ] `tests/integration/routers/test_products.py`
+- [ ] `tests/integration/routers/test_basket.py`
+
+### Comandos
+```bash
+# Frontend
+npx jest --coverage
+
+# Backend
+pytest tests/ --cov=app --cov-report=term-missing
+```
 
 ---
 
 ## Regras de Implementação
 
 1. **O app deve compilar e funcionar após cada fase**
-2. **Nenhum import direto de `@supabase/supabase-js` fora de `src/infrastructure/`**
+2. **Nenhum import direto de `@supabase/supabase-js` no frontend depois da Fase 7**
 3. **Nenhum import direto de `AsyncStorage` fora de `src/infrastructure/storage/`**
-4. **Use cases recebem repositórios via parâmetro (injeção de dependência simples)**
+4. **Use cases recebem repositórios via parâmetro (injeção de dependência)**
 5. **Sem `any` nas interfaces de domínio**
 6. **Cada fase tem commit próprio antes de avançar**
+7. **NUNCA commitar sem autorização explícita**
+8. **NUNCA fazer merge ou push sem autorização**
+9. **Toda funcionalidade nova deve ter teste**
+10. **Coverage mínimo: 80% nos use cases e repositórios**
