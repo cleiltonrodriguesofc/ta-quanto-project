@@ -56,3 +56,8 @@ backend/**/*.pyc
 backend/.pytest_cache/
 backend/.coverage
 backend/htmlcov/
+
+# banco SQLite (dev local, nunca commitar)
+*.db
+*.sqlite
+*.sqlite3
