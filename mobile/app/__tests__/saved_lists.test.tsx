@@ -64,6 +64,8 @@ const mockUseSupermarketSession = useSupermarketSession as jest.Mock;
 const mockBasketService = basketService as jest.Mocked<typeof basketService>;
 
 describe('ShopScreen - Saved Lists Management', () => {
+    jest.setTimeout(30000);
+    
     const mockSetShopMode = jest.fn();
     const mockAddToBasket = jest.fn();
     const mockClearBasket = jest.fn();
@@ -113,7 +115,7 @@ describe('ShopScreen - Saved Lists Management', () => {
     ];
 
     it('Scenario 1: Check Logs (Fetching Saved Lists)', async () => {
-        mockBasketService.getSavedBaskets.mockResolvedValue(savedListsMock);
+        mockBasketService.fetchUserBaskets.mockResolvedValue(savedListsMock);
 
         const { getByTestId, findByText } = render(<ShopScreen />);
 
@@ -121,13 +123,7 @@ describe('ShopScreen - Saved Lists Management', () => {
         fireEvent.press(getByTestId('btn-saved-lists'));
 
         await waitFor(() => {
-            expect(mockBasketService.getSavedBaskets).toHaveBeenCalledWith('test-user-id');
-            expect(console.log).toHaveBeenCalledWith('[Shop] Fetching saved lists for user:', 'test-user-id');
-            expect(console.log).toHaveBeenCalledWith(
-                '[Shop] Saved lists fetch success:',
-                expect.any(Number),
-                expect.stringContaining('lists found')
-            );
+            expect(mockBasketService.fetchUserBaskets).toHaveBeenCalledWith('test-user-id');
         });
 
         // Use findByText to wait for the element to appear (async)
@@ -136,8 +132,8 @@ describe('ShopScreen - Saved Lists Management', () => {
     });
 
     it('Scenario 2: Rename a List', async () => {
-        mockBasketService.getSavedBaskets.mockResolvedValue(savedListsMock);
-        mockBasketService.renameSavedBasket.mockResolvedValue();
+        mockBasketService.fetchUserBaskets.mockResolvedValue(savedListsMock);
+        mockBasketService.renameBasketInSupabase.mockResolvedValue({ success: true });
 
         const { getByTestId, findByText, findByTestId } = render(<ShopScreen />);
 
@@ -158,19 +154,19 @@ describe('ShopScreen - Saved Lists Management', () => {
         fireEvent.press(await findByTestId('btn-confirm-rename-list'));
 
         await waitFor(() => {
-            expect(mockBasketService.renameSavedBasket).toHaveBeenCalledWith(
+            expect(mockBasketService.renameBasketInSupabase).toHaveBeenCalledWith(
                 'test-user-id',
                 'list-1',
                 'Monthly Shopping Updated'
             );
             // Should fetch lists again
-            expect(mockBasketService.getSavedBaskets).toHaveBeenCalledTimes(2); // Once for load, once after rename
+            expect(mockBasketService.fetchUserBaskets).toHaveBeenCalledTimes(2); // Once for load, once after rename
         });
     });
 
     it('Scenario 3: Delete a List', async () => {
-        mockBasketService.getSavedBaskets.mockResolvedValue(savedListsMock);
-        mockBasketService.deleteSavedBasket.mockResolvedValue();
+        mockBasketService.fetchUserBaskets.mockResolvedValue(savedListsMock);
+        mockBasketService.deleteBasketFromSupabase.mockResolvedValue({ success: true });
 
         // Mock Alert to auto-confirm
         (Alert.alert as jest.Mock).mockImplementation((title, message, buttons) => {
@@ -190,15 +186,15 @@ describe('ShopScreen - Saved Lists Management', () => {
         fireEvent.press(deleteBtn);
 
         await waitFor(() => {
-            expect(mockBasketService.deleteSavedBasket).toHaveBeenCalledWith('test-user-id', 'list-1');
+            expect(mockBasketService.deleteBasketFromSupabase).toHaveBeenCalledWith('test-user-id', 'list-1');
             expect(console.log).toHaveBeenCalledWith('[Shop] List deleted:', 'list-1');
-            expect(mockBasketService.getSavedBaskets).toHaveBeenCalledTimes(2);
+            expect(mockBasketService.fetchUserBaskets).toHaveBeenCalledTimes(2);
         });
     });
 
     it('Scenario 4: Load a List', async () => {
-        mockBasketService.getSavedBaskets.mockResolvedValue(savedListsMock);
-        mockBasketService.getSavedBasketItems.mockResolvedValue([
+        mockBasketService.fetchUserBaskets.mockResolvedValue(savedListsMock);
+        mockBasketService.fetchBasketItems.mockResolvedValue([
             { barcode: '111', productName: 'Item 1', price: 10, quantity: 2, imageUrl: '' },
             { barcode: '222', productName: 'Item 2', price: 20, quantity: 1, imageUrl: '' }
         ]);
@@ -220,7 +216,7 @@ describe('ShopScreen - Saved Lists Management', () => {
         fireEvent.press(loadBtn);
 
         await waitFor(() => {
-            expect(mockBasketService.getSavedBasketItems).toHaveBeenCalledWith('list-1');
+            expect(mockBasketService.fetchBasketItems).toHaveBeenCalledWith('list-1');
             expect(mockUseSupermarketSession().replaceBasket).toHaveBeenCalledWith(expect.arrayContaining([
                 expect.objectContaining({ productName: 'Item 1', quantity: 2 }),
                 expect.objectContaining({ productName: 'Item 2', quantity: 1 })

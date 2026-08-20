@@ -37,7 +37,7 @@ import { getProductsBySupermarketName } from '@/utils/supermarketService';
 import { SupermarketSelector } from '@/components/SupermarketSelector';
 import { PriceEntry } from '@/types/price';
 import { useAuth } from '@/context/AuthContext';
-import { saveNamedBasket, getSavedBaskets, getSavedBasketItems, updateSavedBasket, deleteSavedBasket, renameSavedBasket } from '@/utils/basketService';
+import { createBasketInSupabase, fetchUserBaskets, fetchBasketItems, updateBasketInSupabase, deleteBasketFromSupabase, renameBasketInSupabase } from '@/utils/basketService';
 
 export default function ShopScreen() {
     const router = useRouter();
@@ -133,7 +133,7 @@ export default function ShopScreen() {
         setIsLoadingSaved(true);
         console.log('[Shop] Fetching saved lists for user:', user.id);
         try {
-            const lists = await getSavedBaskets(user.id);
+            const lists = await fetchUserBaskets(user.id);
             console.log('[Shop] Saved lists fetch success:', lists ? lists.length : 0, 'lists found');
             setSavedLists(lists || []);
         } catch (error) {
@@ -154,7 +154,7 @@ export default function ShopScreen() {
         if (!user || !renamingListId || !renamingListName.trim()) return;
 
         try {
-            await renameSavedBasket(user.id, renamingListId, renamingListName);
+            await renameBasketInSupabase(user.id, renamingListId, renamingListName);
             setEditListModalVisible(false);
             setRenamingListId(null);
             setRenamingListName('');
@@ -185,7 +185,7 @@ export default function ShopScreen() {
                     onPress: async () => {
                         if (!user) return;
                         try {
-                            await deleteSavedBasket(user.id, listId);
+                            await deleteBasketFromSupabase(user.id, listId);
                             console.log('[Shop] List deleted:', listId);
 
                             // If deleting the currently active list, clear the basket
@@ -226,7 +226,7 @@ export default function ShopScreen() {
                     onPress: async () => {
                         setIsLoadingSaved(true);
                         try {
-                            const items = await getSavedBasketItems(savedBasket.id);
+                            const items = await fetchBasketItems(savedBasket.id);
 
                             // Use new replaceBasket to avoid duplication issues
                             const basketItems = items.map((item: any) => ({
@@ -366,7 +366,7 @@ export default function ShopScreen() {
         setIsSaving(true);
         try {
             if (activeSavedListId) {
-                await updateSavedBasket(
+                await updateBasketInSupabase(
                     user!.id,
                     activeSavedListId,
                     basket,
@@ -375,7 +375,7 @@ export default function ShopScreen() {
                 Alert.alert(t('success'), t('list_saved'));
             } else {
                 const currSupermarket = selectedSupermarket || 'Unknown';
-                const newBasket = await saveNamedBasket(
+                const newBasket = await createBasketInSupabase(
                     user!.id,
                     listName,
                     basket,
