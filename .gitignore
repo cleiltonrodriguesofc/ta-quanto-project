@@ -1,13 +1,14 @@
-# dependencies
-node_modules/
+# ──────────────────────────────────────────────
+# Mobile (React Native / Expo) — mobile/
+# ──────────────────────────────────────────────
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/.env
 
-# expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# native
+# native build artifacts
 *.orig.*
 *.jks
 *.p8
@@ -18,21 +19,40 @@ expo-env.d.ts
 # metro
 .metro-health-check*
 
-# debug
+# debug logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
 
-# macos
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-.env
-
 # typescript
 *.tsbuildinfo
+
+# ──────────────────────────────────────────────
+# Backend (FastAPI / Python) — backend/
+# ──────────────────────────────────────────────
+backend/venv/
+backend/.env
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/.coverage
+backend/htmlcov/
+
+# ──────────────────────────────────────────────
+# Banco de dados — nunca commitar
+# ──────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ──────────────────────────────────────────────
+# Geral
+# ──────────────────────────────────────────────
+.DS_Store
+*.pem
+.env
+.env*.local
 
 # test artifacts
 *_final.txt
@@ -43,21 +63,6 @@ tsc_*.txt
 # sql scripts
 *.sql
 
-# server debug / tunnel files
+# tunnel/server logs
 server/tunnel_url*.txt
 server/*.txt
-
-# backend Python
-backend/venv/
-backend/.env
-backend/__pycache__/
-backend/**/__pycache__/
-backend/**/*.pyc
-backend/.pytest_cache/
-backend/.coverage
-backend/htmlcov/
-
-# banco SQLite (dev local, nunca commitar)
-*.db
-*.sqlite
-*.sqlite3

@@ -1,97 +1,183 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# start.sh - Script de inicialização do TaQuanto
+# TaQuanto? — Script de Inicialização Linux
 
-show_help() {
-    echo "========================================="
-    echo "🚀 TaQuanto? - Gerenciador de Serviços"
-    echo "========================================="
-    echo "Uso: ./start.sh [OPÇÃO]"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CD_MOBILE="$PROJECT_DIR/mobile"
+CD_BACKEND="$PROJECT_DIR/backend"
+
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP="127.0.0.1"
+fi
+
+TUNNEL_SUBDOMAIN="taquanto-cleilton"
+TUNNEL_DOMAIN="https://${TUNNEL_SUBDOMAIN}.loca.lt"
+
+# PIDs globais para cleanup
+TUNNEL_PID=""
+BACKEND_PID=""
+
+cleanup() {
     echo ""
-    echo "Opções disponíveis:"
-    echo "  backend    - Inicia apenas o servidor FastAPI (com fallback de porta)"
-    echo "  frontend   - Inicia apenas o app Expo Go"
-    echo "  tunnel     - Inicia apenas o Localtunnel na porta definida"
-    echo "  all        - Inicia TODOS simultaneamente (Backend + Tunnel + Frontend)"
-    echo "  help       - Mostra esta mensagem de ajuda"
-    echo "========================================="
+    echo "🛑 Encerrando todos os processos iniciados..."
+    [ -n "$TUNNEL_PID" ] && kill "$TUNNEL_PID" 2>/dev/null
+    [ -n "$BACKEND_PID" ] && kill "$BACKEND_PID" 2>/dev/null
+    exit 0
 }
+trap cleanup SIGINT SIGTERM
 
-find_available_port() {
-    PORT=8000
-    # Checa se a porta está respondendo. Se sim, está ocupada.
-    while (echo > /dev/tcp/127.0.0.1/$PORT) >/dev/null 2>&1; do
-        echo "⚠️ Porta $PORT em uso, tentando $((PORT+1))..."
-        PORT=$((PORT+1))
-    done
-    echo "✅ Porta $PORT disponível e selecionada!"
+echo "=================================================="
+echo "🛒 TAQUANTO? — SELECIONE O MODO DE EXECUÇÃO"
+echo "=================================================="
+echo "1) Localtunnel completo (Backend + Tunnel + Expo via tunnel)"
+echo "   ↳ API:   ${TUNNEL_DOMAIN}"
+echo "   ↳ Metro: tunnel — Expo Go funciona sem rede local"
+echo "2) Rede Local (Backend + Expo via LAN)"
+echo "   ↳ URL: http://${LOCAL_IP}:8000"
+echo "3) Apenas Backend (FastAPI)"
+echo "4) Apenas Frontend — Expo via tunnel"
+echo "5) Apenas Localtunnel (Porta 8000)"
+echo "6) Backend + Localtunnel (sem Expo) — para APK instalado no celular"
+echo "   ↳ API via túnel: ${TUNNEL_DOMAIN}"
+echo "=================================================="
+
+if [ -n "$1" ]; then
+    CHOICE="$1"
+else
+    read -p "Escolha a opção (1-6) [padrão: 2]: " CHOICE
+    CHOICE=${CHOICE:-2}
+fi
+
+echo ""
+
+# Atualiza o .env do mobile com a URL da API
+update_mobile_env() {
+    local target_url="$1"
+    local env_file="$CD_MOBILE/.env"
+
+    echo "EXPO_PUBLIC_API_URL=${target_url}/api/v1" > "$env_file"
+    echo "✅ mobile/.env configurado com API URL: ${target_url}/api/v1"
 }
 
 start_backend() {
-    echo "🟢 Iniciando Backend FastAPI na porta $PORT..."
-    cd backend || exit
+    echo "🧹 Limpando porta 8000 caso esteja ocupada..."
+    fuser -k 8000/tcp 2>/dev/null
+    sleep 1
+    echo "🔄 Iniciando Backend em http://0.0.0.0:8000 ..."
+    cd "$CD_BACKEND" || exit
     source venv/bin/activate
-    export DATABASE_URL="sqlite+aiosqlite:///./taquanto.db"
-    
-    # O on_startup do main.py já cria as tabelas automaticamente
-    uvicorn app.main:app --host 0.0.0.0 --port $PORT --reload
+    uvicorn app.main:app --reload --reload-exclude 'venv' --host 0.0.0.0 --port 8000 &
+    BACKEND_PID=$!
+    echo "✅ Backend rodando (PID: $BACKEND_PID)"
+    sleep 2
 }
 
 start_tunnel() {
-    echo "🌐 Iniciando Localtunnel apontando para a porta $PORT..."
-    echo "🔗 URL pública: https://taquanto.loca.lt"
-    npx localtunnel --port $PORT --subdomain taquanto
+    local MAX_RETRIES=10
+    local RETRY_WAIT=15
+
+    echo "🌐 Iniciando Localtunnel no subdomínio '${TUNNEL_SUBDOMAIN}'..."
+
+    for attempt in $(seq 1 $MAX_RETRIES); do
+        LT_LOG="/tmp/lt_taquanto_$$.log"
+        rm -f "$LT_LOG"
+
+        npx localtunnel --port 8000 --subdomain "$TUNNEL_SUBDOMAIN" > "$LT_LOG" 2>&1 &
+        TUNNEL_PID=$!
+
+        echo "⏳ Tentativa ${attempt}/${MAX_RETRIES} — aguardando resposta do túnel..."
+
+        for i in {1..12}; do
+            if grep -q "your url is:" "$LT_LOG" 2>/dev/null; then
+                break
+            fi
+            sleep 1
+        done
+
+        ACTUAL_TUNNEL_URL=$(grep "your url is:" "$LT_LOG" 2>/dev/null | awk '{print $4}')
+
+        if [ "$ACTUAL_TUNNEL_URL" = "$TUNNEL_DOMAIN" ]; then
+            echo "✅ Subdomínio correto obtido: ${ACTUAL_TUNNEL_URL}"
+            update_mobile_env "$ACTUAL_TUNNEL_URL"
+            return 0
+        fi
+
+        echo "⚠️  Subdomínio indisponível (obteve: '${ACTUAL_TUNNEL_URL:-nenhum}'). Aguardando ${RETRY_WAIT}s para nova tentativa..."
+        kill "$TUNNEL_PID" 2>/dev/null
+        wait "$TUNNEL_PID" 2>/dev/null
+        TUNNEL_PID=""
+        sleep "$RETRY_WAIT"
+    done
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "❌ ERRO: Não foi possível obter o subdomínio '${TUNNEL_DOMAIN}'"
+    echo "   após ${MAX_RETRIES} tentativas."
+    echo ""
+    echo "   Possíveis causas:"
+    echo "   • Outra sessão sua ainda está segurando o subdomínio"
+    echo "   • O servidor loca.lt está com instabilidade"
+    echo ""
+    echo "   O que fazer:"
+    echo "   1. Aguarde ~2 minutos e rode o script novamente (opção 6)"
+    echo "   2. Se persistir, acesse ${TUNNEL_DOMAIN} no navegador"
+    echo "      para forçar liberação do subdomínio"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "⚙️  O backend continua rodando em http://localhost:8000"
+    echo "   Pressione Ctrl+C para encerrar."
 }
 
-start_frontend() {
-    echo "📱 Iniciando Frontend Expo..."
-    npx expo start -c --tunnel
+# Expo via tunnel do Metro — Expo Go acessa via internet (sem precisar de rede local)
+start_frontend_tunnel() {
+    echo "📱 Iniciando Frontend (Expo — Metro via tunnel)..."
+    echo "   → O QR code gerado funcionará via internet no Expo Go"
+    cd "$CD_MOBILE" || exit
+    npx expo start --tunnel --clear
 }
 
-start_all() {
-    echo "🔥 Iniciando todo o ecossistema (Full Stack)..."
-
-    find_available_port
-
-    # Atualiza o .env para usar a URL do tunnel
-    echo "EXPO_PUBLIC_API_URL=https://taquanto.loca.lt" > .env
-    echo "✅ .env do frontend atualizado com a URL: https://taquanto.loca.lt"
-
-    (start_backend) & 
-    BACKEND_PID=$!
-    
-    sleep 2
-    
-    (start_tunnel) &
-    TUNNEL_PID=$!
-
-    sleep 3
-    
-    (start_frontend) &
-    FRONTEND_PID=$!
-    
-    trap "echo -e '\n🔴 Encerrando processos (Backend, Tunnel e Frontend)...'; kill $BACKEND_PID $TUNNEL_PID $FRONTEND_PID 2>/dev/null; exit 0" SIGINT SIGTERM
-    
-    echo "✅ Ecossistema no ar! Pressione Ctrl+C para derrubar tudo."
-    wait
+# Expo via LAN — Expo Go precisa estar na mesma rede Wi-Fi
+start_frontend_lan() {
+    echo "📱 Iniciando Frontend (Expo — Metro via LAN)..."
+    cd "$CD_MOBILE" || exit
+    export REACT_NATIVE_PACKAGER_HOSTNAME="$LOCAL_IP"
+    npx expo start --clear
 }
 
-case "$1" in
-    backend)
-        find_available_port
+case "$CHOICE" in
+    1)
         start_backend
-        ;;
-    frontend)
-        start_frontend
-        ;;
-    tunnel)
-        find_available_port
         start_tunnel
+        start_frontend_tunnel
         ;;
-    all)
-        start_all
+    2)
+        update_mobile_env "http://${LOCAL_IP}:8000"
+        start_backend
+        start_frontend_lan
+        ;;
+    3)
+        start_backend
+        echo "📌 Pressione Ctrl+C para encerrar o backend."
+        wait $BACKEND_PID
+        ;;
+    4)
+        update_mobile_env "$TUNNEL_DOMAIN"
+        start_frontend_tunnel
+        ;;
+    5)
+        npx localtunnel --port 8000 --subdomain "$TUNNEL_SUBDOMAIN"
+        ;;
+    6)
+        start_backend
+        start_tunnel
+        echo ""
+        echo "📱 APK pronto para conectar em: ${ACTUAL_TUNNEL_URL:-$TUNNEL_DOMAIN}/api/v1"
+        echo "📌 Pressione Ctrl+C para encerrar o backend e o túnel."
+        wait $BACKEND_PID
         ;;
     *)
-        show_help
+        echo "❌ Opção inválida. Use de 1 a 6."
+        exit 1
         ;;
 esac
