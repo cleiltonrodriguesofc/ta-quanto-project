@@ -10,6 +10,7 @@ export const apiClient = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    'Bypass-Tunnel-Reminder': 'true', // Essencial para o localtunnel não retornar a página de aviso em HTML
   },
 });
 
