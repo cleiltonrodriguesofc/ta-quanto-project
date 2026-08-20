@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import uuid
 from jose import JWTError, jwt
 import bcrypt
 from app.config import settings
@@ -25,7 +26,12 @@ def create_access_token(user_id: str) -> str:
 
 def create_refresh_token(user_id: str) -> tuple[str, datetime]:
     expire = _now() + timedelta(days=settings.refresh_token_expire_days)
-    payload = {"sub": user_id, "exp": expire, "type": "refresh"}
+    payload = {
+        "sub": user_id,
+        "exp": expire,
+        "type": "refresh",
+        "jti": str(uuid.uuid4()),  # garante unicidade do token
+    }
     token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return token, expire
 

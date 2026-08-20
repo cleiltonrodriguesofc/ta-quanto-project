@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from app.core.infrastructure.database.session import get_db
 from app.core.infrastructure.database.models import SavedBasketModel, SavedBasketItemModel, UserModel
 from app.core.infrastructure.auth.dependencies import get_current_user
@@ -55,7 +56,9 @@ async def get_my_baskets(
     current_user: UserModel = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(SavedBasketModel).where(SavedBasketModel.user_id == current_user.id)
+        select(SavedBasketModel)
+        .where(SavedBasketModel.user_id == current_user.id)
+        .options(selectinload(SavedBasketModel.items))
     )
     return [_basket_to_out(b) for b in result.scalars().all()]
 
@@ -80,7 +83,13 @@ async def create_basket(
         db.add(item)
 
     await db.commit()
-    await db.refresh(basket)
+    # Recarrega com os itens para o count correto
+    result = await db.execute(
+        select(SavedBasketModel)
+        .where(SavedBasketModel.id == basket.id)
+        .options(selectinload(SavedBasketModel.items))
+    )
+    basket = result.scalar_one()
     return _basket_to_out(basket)
 
 
@@ -107,10 +116,12 @@ async def delete_basket(
 
 async def _get_own_basket(db: AsyncSession, basket_id: str, user_id: str) -> SavedBasketModel:
     result = await db.execute(
-        select(SavedBasketModel).where(
+        select(SavedBasketModel)
+        .where(
             SavedBasketModel.id == basket_id,
             SavedBasketModel.user_id == user_id,
         )
+        .options(selectinload(SavedBasketModel.items))
     )
     basket = result.scalar_one_or_none()
     if not basket:
