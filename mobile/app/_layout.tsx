@@ -17,20 +17,15 @@ export default function RootLayout() {
     const performSync = async () => {
       console.log('[Sync] Starting background sync...');
       try {
-        const { syncLocalData } = await import('@/utils/storage');
-        const { isCacheStale, hydrateLocalCache } = await import('@/utils/syncService');
+        const { syncOfflineData } = await import('@/utils/syncService');
 
-        // 1. Sink local changes TO server (Upload)
-        const result = await syncLocalData();
-        console.log('[Sync] Upload Result:', result.message);
-
-        // 2. Hydrate local cache FROM server (Download)
-        if (await isCacheStale()) {
-          console.log('[Sync] Cache is stale, hydrating...');
-          await hydrateLocalCache();
+        // Upload local offline prices to server
+        const result = await syncOfflineData();
+        if (result.syncedCount > 0) {
+          console.log('[Sync] Synced', result.syncedCount, 'offline prices to server');
         }
       } catch (error) {
-        console.error('[Sync] Failed to perform background sync/hydration:', error);
+        console.error('[Sync] Failed to perform background sync:', error);
       }
     };
 

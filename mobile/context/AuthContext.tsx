@@ -1,21 +1,17 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/utils/supabase';
-import { authUseCases } from '@/src/application';
+import { authUseCases, AuthSession } from '@/src/application';
 
 type AuthContextType = {
-  session: Session | null;
-  user: User | null;
+  session: AuthSession | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, name?: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
-  user: null,
   isLoading: true,
   signOut: async () => {},
   signInWithGoogle: async () => {},
@@ -26,50 +22,44 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check initial active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setIsLoading(false);
-      console.log(`[Auth] Session User: ${session?.user?.email || 'No user'}`);
-    });
-
-    // Subscribe to auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Verifica se há sessão ativa nos tokens do AsyncStorage
+    authUseCases.getSession().then((s) => {
+      setSession(s);
+      console.log(`[Auth] Session: ${s?.email || s?.userId || 'Nenhuma sessão'}`);
+    }).catch(() => {
+      setSession(null);
+    }).finally(() => {
       setIsLoading(false);
     });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
-    await authUseCases.signOut();
-  };
-
   const signInWithEmail = async (email: string, password: string) => {
-    await authUseCases.signInWithEmail(email, password);
+    const s = await authUseCases.signInWithEmail(email, password);
+    setSession(s);
   };
 
   const signUpWithEmail = async (email: string, password: string) => {
-    await authUseCases.signUpWithEmail(email, password);
+    const s = await authUseCases.signUpWithEmail(email, password);
+    setSession(s);
   };
 
   const signInWithGoogle = async () => {
     await authUseCases.signInWithGoogle();
   };
 
+  const signOut = async () => {
+    await authUseCases.signOut();
+    setSession(null);
+  };
+
   return (
     <AuthContext.Provider
       value={{
         session,
-        user,
         isLoading,
         signOut,
         signInWithGoogle,
