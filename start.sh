@@ -11,8 +11,11 @@ if [ -z "$LOCAL_IP" ]; then
     LOCAL_IP="127.0.0.1"
 fi
 
-TUNNEL_SUBDOMAIN="taquanto-cleilton"
+TUNNEL_SUBDOMAIN="taquantoapp-cleilton"
 TUNNEL_DOMAIN="https://${TUNNEL_SUBDOMAIN}.loca.lt"
+
+# Caminho do .env do ponto_certo (onde o NGROK_AUTHTOKEN fica salvo)
+PONTO_CERTO_ENV="/media/cleilton/CLEILTON/PROJETOS/ponto_certo/frontend/.env"
 
 # PIDs globais para cleanup
 TUNNEL_PID=""
@@ -56,8 +59,8 @@ update_mobile_env() {
     local target_url="$1"
     local env_file="$CD_MOBILE/.env"
 
-    echo "EXPO_PUBLIC_API_URL=${target_url}/api/v1" > "$env_file"
-    echo "✅ mobile/.env configurado com API URL: ${target_url}/api/v1"
+    echo "EXPO_PUBLIC_API_URL=${target_url}" > "$env_file"
+    echo "✅ mobile/.env configurado com API URL: ${target_url}"
 }
 
 start_backend() {
@@ -129,8 +132,31 @@ start_tunnel() {
     echo "   Pressione Ctrl+C para encerrar."
 }
 
+# Configura o authtoken do ngrok (lido do .env do ponto_certo)
+configure_ngrok() {
+    if [ -f "$PONTO_CERTO_ENV" ]; then
+        NGROK_TOKEN=$(grep -E '^NGROK_AUTHTOKEN=' "$PONTO_CERTO_ENV" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d '\r')
+    fi
+
+    if [ -z "$NGROK_TOKEN" ]; then
+        # Fallback: tenta carregar da variável de ambiente da sessão atual
+        NGROK_TOKEN="$NGROK_AUTHTOKEN"
+    fi
+
+    if [ -z "$NGROK_TOKEN" ]; then
+        echo "⚠️  ATENÇÃO: NGROK_AUTHTOKEN não encontrado em '${PONTO_CERTO_ENV}'"
+        echo "   O Expo tunnel pode falhar. Configure o token em:"
+        echo "   ${PONTO_CERTO_ENV}"
+        return 1
+    fi
+
+    echo "🔑 Configurando ngrok authtoken..."
+    ngrok authtoken "$NGROK_TOKEN" > /dev/null 2>&1 && echo "✅ Ngrok autenticado com sucesso."
+}
+
 # Expo via tunnel do Metro — Expo Go acessa via internet (sem precisar de rede local)
 start_frontend_tunnel() {
+    configure_ngrok
     echo "📱 Iniciando Frontend (Expo — Metro via tunnel)..."
     echo "   → O QR code gerado funcionará via internet no Expo Go"
     cd "$CD_MOBILE" || exit
