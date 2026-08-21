@@ -14,8 +14,8 @@ fi
 TUNNEL_SUBDOMAIN="taquantoapp-cleilton"
 TUNNEL_DOMAIN="https://${TUNNEL_SUBDOMAIN}.loca.lt"
 
-# Caminho do .env do ponto_certo (onde o NGROK_AUTHTOKEN fica salvo)
-PONTO_CERTO_ENV="/media/cleilton/CLEILTON/PROJETOS/ponto_certo/frontend/.env"
+# .env do próprio projeto (onde o NGROK_AUTHTOKEN fica salvo)
+PROJECT_ENV="$PROJECT_DIR/backend/.env"
 
 # PIDs globais para cleanup
 TUNNEL_PID=""
@@ -132,21 +132,13 @@ start_tunnel() {
     echo "   Pressione Ctrl+C para encerrar."
 }
 
-# Configura o authtoken do ngrok (lido do .env do ponto_certo)
+# Configura o authtoken do ngrok (lido do backend/.env do próprio projeto)
 configure_ngrok() {
-    if [ -f "$PONTO_CERTO_ENV" ]; then
-        NGROK_TOKEN=$(grep -E '^NGROK_AUTHTOKEN=' "$PONTO_CERTO_ENV" | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d '\r')
-    fi
+    NGROK_TOKEN=$(grep -E '^NGROK_AUTHTOKEN=' "$PROJECT_ENV" 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | tr -d '\r')
 
     if [ -z "$NGROK_TOKEN" ]; then
-        # Fallback: tenta carregar da variável de ambiente da sessão atual
-        NGROK_TOKEN="$NGROK_AUTHTOKEN"
-    fi
-
-    if [ -z "$NGROK_TOKEN" ]; then
-        echo "⚠️  ATENÇÃO: NGROK_AUTHTOKEN não encontrado em '${PONTO_CERTO_ENV}'"
-        echo "   O Expo tunnel pode falhar. Configure o token em:"
-        echo "   ${PONTO_CERTO_ENV}"
+        echo "⚠️  ATENÇÃO: NGROK_AUTHTOKEN não encontrado em '${PROJECT_ENV}'"
+        echo "   Adicione a linha: NGROK_AUTHTOKEN=seu_token"
         return 1
     fi
 
