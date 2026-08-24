@@ -69,9 +69,9 @@ export default function HomeScreen() {
       <View style={styles.recentActivity}>
         <Text style={styles.sectionTitle}>{t('recent_prices')}</Text>
         {recentPrices.length > 0 ? (
-          recentPrices.map((price) => (
+          recentPrices.map((price, index) => (
             <TouchableOpacity
-              key={price.id}
+              key={`${price.id}-${index}`}
               style={styles.activityCard}
               onPress={() => router.push(`/product/${price.barcode}`)}
             >

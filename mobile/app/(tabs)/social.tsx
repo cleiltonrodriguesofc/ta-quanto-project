@@ -11,15 +11,15 @@ import { useAuth } from '@/context/AuthContext';
 export default function SocialScreen() {
     const router = useRouter();
     const { t } = useTranslation();
-    const { user, isLoading } = useAuth();
+    const { session, isLoading } = useAuth();
 
     useEffect(() => {
-        if (!isLoading && !user) {
+        if (!isLoading && !session) {
             router.replace('/auth/login');
         }
-    }, [user, isLoading, router]);
+    }, [session, isLoading, router]);
 
-    if (isLoading || !user) return null;
+    if (isLoading || !session) return null;
 
     const handleCreatePost = () => {
         router.push('/create-post' as any);

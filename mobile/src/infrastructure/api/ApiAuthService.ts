@@ -74,20 +74,45 @@ export class ApiAuthService implements IAuthService {
     try {
       const accessToken = await AsyncStorage.getItem('@auth_access_token');
       if (!accessToken) return null;
-      
+
       const decoded: any = jwtDecode(accessToken);
       const isExpired = decoded.exp * 1000 < Date.now();
-      
-      if (isExpired) {
-        // Interceptor will try to refresh on next request, but for getSession:
-        return null; // Force re-login or rely on interceptor next time.
+
+      if (!isExpired) {
+        return {
+          userId: decoded.sub,
+          email: '',
+          accessToken,
+        };
       }
-      
-      return {
-        userId: decoded.sub,
-        email: '', // We might need an extra endpoint or decode this from JWT if included
-        accessToken: accessToken,
-      };
+
+      // Access token expirado → tenta renovar com o refresh token
+      const refreshToken = await AsyncStorage.getItem('@auth_refresh_token');
+      if (!refreshToken) return null;
+
+      try {
+        const { data } = await apiClient.post('/api/v1/auth/refresh', {
+          refresh_token: refreshToken,
+        });
+
+        if (data.access_token) {
+          await AsyncStorage.setItem('@auth_access_token', data.access_token);
+          await AsyncStorage.setItem('@auth_refresh_token', data.refresh_token);
+
+          const newDecoded: any = jwtDecode(data.access_token);
+          return {
+            userId: newDecoded.sub,
+            email: '',
+            accessToken: data.access_token,
+          };
+        }
+      } catch (refreshError) {
+        console.warn('[ApiAuthService] Refresh token inválido, sessão encerrada.');
+        await AsyncStorage.removeItem('@auth_access_token');
+        await AsyncStorage.removeItem('@auth_refresh_token');
+      }
+
+      return null;
     } catch (error) {
       return null;
     }

@@ -4,6 +4,8 @@ export interface Product {
   brand?: string;
   imageUrl?: string;
   avgPrice?: number;
+  bestPrice?: number;
+  supermarket?: string;
   createdAt?: string;
 }
 

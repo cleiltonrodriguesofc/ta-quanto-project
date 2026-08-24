@@ -22,18 +22,18 @@ const LIST_KEY = 'taquanto_shopping_list';
 export default function ShoppingListScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [newItemName, setNewItemName] = useState('');
 
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !session) {
       router.replace('/auth/login');
-    } else if (user) {
+    } else if (session) {
       loadList();
     }
-  }, [user, authLoading, router]);
+  }, [session, authLoading, router]);
 
   const loadList = async () => {
     try {
@@ -127,7 +127,7 @@ export default function ShoppingListScreen() {
     </View>
   );
 
-  if (authLoading || !user) {
+  if (authLoading || !session) {
     return null;
   }
 

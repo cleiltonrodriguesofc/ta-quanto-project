@@ -32,3 +32,6 @@ export async function getSupermarketById(id: string | number): Promise<Supermark
   const markets = await fetchSupermarkets();
   return markets.find(m => String(m.id) === String(id)) || null;
 }
+
+/** Alias utilizado pelas telas — equivale a fetchSupermarkets */
+export const getSupermarkets = fetchSupermarkets;

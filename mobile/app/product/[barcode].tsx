@@ -26,7 +26,7 @@ export default function ProductDetailsScreen() {
     const { barcode, fromBasket } = useLocalSearchParams<{ barcode: string, fromBasket?: string }>();
     const isFromBasket = fromBasket === 'true';
 
-    const { user } = useAuth();
+    const { session } = useAuth();
     const router = useRouter();
     const { t } = useTranslation();
 
@@ -104,7 +104,7 @@ export default function ProductDetailsScreen() {
     const isUpdatedToday = currentSupermarketPrice && new Date(currentSupermarketPrice.timestamp).toDateString() === new Date().toDateString();
 
     const handleConfirmPrice = async () => {
-        if (!user) {
+        if (!session) {
             router.push('/auth/login');
             return;
         }
@@ -156,7 +156,7 @@ export default function ProductDetailsScreen() {
     };
 
     const handleUpdatePrice = () => {
-        if (!user) {
+        if (!session) {
             router.push('/auth/login');
             return;
         }

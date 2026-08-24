@@ -15,7 +15,7 @@ import { useAuth } from '@/context/AuthContext';
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { session, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -27,17 +27,14 @@ export default function ProfileScreen() {
 
 
   const loadProfile = useCallback(async () => {
-    const userProfile = await getUserProfile(user?.id);
+    const userProfile = await getUserProfile(session?.userId);
     setProfile(userProfile);
     if (userProfile) {
       setDisplayName(userProfile.displayName || '');
       setSelectedAvatar(userProfile.avatarId || 'avatar1');
-      // Calculate level based on points (shared count * 10 for demo, or just use shared count)
-      // Let's assume 1 share = 10 Pontos for now to make numbers look bigger/fun
       const points = (userProfile.stats?.pricesShared || 0) * 10;
       setLevelInfo(calculateNextLevelProgress(points));
 
-      // Fetch activity
       try {
         const activity = await api.getPricesByUser(userProfile.id);
         setRecentActivity(activity);
@@ -47,15 +44,15 @@ export default function ProfileScreen() {
     } else {
       setIsEditing(true);
     }
-  }, [user?.id]);
+  }, [session?.userId]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !session) {
       router.replace('/auth/login');
-    } else if (user) {
+    } else if (session) {
       loadProfile();
     }
-  }, [user, authLoading, router, loadProfile]);
+  }, [session, authLoading, router, loadProfile]);
 
   const pickImage = async () => {
     // No permissions request is necessary for launching the image library
@@ -93,7 +90,7 @@ export default function ProfileScreen() {
       }
 
       const newProfile: UserProfile = {
-        id: user?.id || profile?.id || Date.now().toString(),
+        id: session?.userId || profile?.id || Date.now().toString(),
         displayName: displayName.trim(),
         avatarId: finalAvatarId,
         joinedDate: profile?.joinedDate || new Date().toISOString(),
@@ -175,7 +172,7 @@ export default function ProfileScreen() {
     return avatarId.startsWith('file://') || avatarId.startsWith('http') || avatarId.startsWith('data:');
   };
 
-  if (authLoading || !user) {
+  if (authLoading || !session) {
     return null;
   }
 

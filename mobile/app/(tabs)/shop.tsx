@@ -61,7 +61,7 @@ export default function ShopScreen() {
     const [lookupProducts, setLookupProducts] = useState<PriceEntry[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoadingLookup, setIsLoadingLookup] = useState(false);
-    const { user } = useAuth();
+    const { session } = useAuth();
     const [isSaving, setIsSaving] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [listName, setListName] = useState('');
@@ -129,11 +129,11 @@ export default function ShopScreen() {
     const [renamingListName, setRenamingListName] = useState('');
 
     const loadSavedLists = useCallback(async () => {
-        if (!user) return;
+        if (!session) return;
         setIsLoadingSaved(true);
-        console.log('[Shop] Fetching saved lists for user:', user.id);
+        console.log('[Shop] Fetching saved lists for user:', session.userId);
         try {
-            const lists = await fetchUserBaskets(user.id);
+            const lists = await fetchUserBaskets(session.userId);
             console.log('[Shop] Saved lists fetch success:', lists ? lists.length : 0, 'lists found');
             setSavedLists(lists || []);
         } catch (error) {
@@ -142,7 +142,7 @@ export default function ShopScreen() {
         } finally {
             setIsLoadingSaved(false);
         }
-    }, [user, t]);
+    }, [session, t]);
 
     const handleRenameList = (listId: string, currentName: string) => {
         setRenamingListId(listId);
@@ -151,10 +151,10 @@ export default function ShopScreen() {
     };
 
     const confirmRenameList = async () => {
-        if (!user || !renamingListId || !renamingListName.trim()) return;
+        if (!session || !renamingListId || !renamingListName.trim()) return;
 
         try {
-            await renameBasketInSupabase(user.id, renamingListId, renamingListName);
+            await renameBasketInSupabase(session.userId, renamingListId, renamingListName);
             setEditListModalVisible(false);
             setRenamingListId(null);
             setRenamingListName('');
@@ -183,9 +183,9 @@ export default function ShopScreen() {
                     text: t('delete'),
                     style: 'destructive',
                     onPress: async () => {
-                        if (!user) return;
+                        if (!session) return;
                         try {
-                            await deleteBasketFromSupabase(user.id, listId);
+                            await deleteBasketFromSupabase(session.userId, listId);
                             console.log('[Shop] List deleted:', listId);
 
                             // If deleting the currently active list, clear the basket
@@ -342,7 +342,7 @@ export default function ShopScreen() {
     };
 
     const handleSaveList = async () => {
-        if (!user) {
+        if (!session) {
             Alert.alert(t('error'), t('login_required'));
             return;
         }
@@ -367,7 +367,7 @@ export default function ShopScreen() {
         try {
             if (activeSavedListId) {
                 await updateBasketInSupabase(
-                    user!.id,
+                    session!.userId,
                     activeSavedListId,
                     basket,
                     basketTotal
@@ -376,10 +376,10 @@ export default function ShopScreen() {
             } else {
                 const currSupermarket = selectedSupermarket || 'Unknown';
                 const newBasket = await createBasketInSupabase(
-                    user!.id,
+                    session!.userId,
                     listName,
-                    basket,
                     currSupermarket,
+                    basket,
                     basketTotal
                 );
                 setActiveSavedListId(newBasket.id);

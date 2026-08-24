@@ -36,6 +36,12 @@ export default function RootLayout() {
     <AuthProvider>
       <SupermarketProvider>
         <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="auth/login" />
+          <Stack.Screen name="auth/register" />
+          <Stack.Screen name="product/[barcode]" />
+          <Stack.Screen name="product/[id]" />
+          <Stack.Screen name="supermarket/[id]" />
           <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />

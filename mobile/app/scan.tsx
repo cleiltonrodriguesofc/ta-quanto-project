@@ -76,7 +76,11 @@ export default function ScanScreen() {
       // Artificial delay for UX (to allow user to read the message)
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      const existingProduct = await getProductByBarcode(data);
+      const rawProduct = await getProductByBarcode(data);
+      const existingProduct = rawProduct ? {
+        ...rawProduct,
+        productName: rawProduct.name || (rawProduct as any).productName
+      } as Partial<PriceEntry> : null;
       let productData: Partial<PriceEntry> | null = existingProduct;
 
       // If product exists but has no image, try to fetch from API to enrich it

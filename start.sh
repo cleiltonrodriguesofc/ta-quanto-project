@@ -54,12 +54,18 @@ fi
 
 echo ""
 
-# Atualiza o .env do mobile com a URL da API
+# Atualiza o .env do mobile com a URL da API (preserva outras variáveis)
 update_mobile_env() {
     local target_url="$1"
     local env_file="$CD_MOBILE/.env"
 
-    echo "EXPO_PUBLIC_API_URL=${target_url}" > "$env_file"
+    if [ -f "$env_file" ] && grep -q "EXPO_PUBLIC_API_URL=" "$env_file"; then
+        # Atualiza apenas a linha existente, sem apagar o restante
+        sed -i "s|^EXPO_PUBLIC_API_URL=.*|EXPO_PUBLIC_API_URL=${target_url}|" "$env_file"
+    else
+        # Adiciona se não existir
+        echo "EXPO_PUBLIC_API_URL=${target_url}" >> "$env_file"
+    fi
     echo "✅ mobile/.env configurado com API URL: ${target_url}"
 }
 

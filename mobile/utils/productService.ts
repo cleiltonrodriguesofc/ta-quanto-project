@@ -1,4 +1,4 @@
-import { lookupProductUseCase } from '@/src/application';
+import { lookupProductUseCase, getCommunityPricesUseCase } from '@/src/application';
 import { Product } from '@/types/product';
 import { getLocalProducts, saveLocalProducts } from './storage';
 
@@ -34,4 +34,39 @@ export const addProductToLocalCache = async (product: Product): Promise<void> =>
     updated = [...products, product];
   }
   await saveLocalProducts(updated as any);
+};
+
+/**
+ * Busca produtos do Supabase (via getCommunityPricesUseCase com fallback local).
+ * Agrupa por barcode e expõe o melhor preço e supermercado para cada produto.
+ */
+export const getProducts = async (): Promise<Product[]> => {
+  try {
+    const prices = await getCommunityPricesUseCase.execute();
+    if (!prices || prices.length === 0) return getLocalProducts();
+
+    // Agrupa por barcode, mantendo o menor preço
+    const map = new Map<string, Product>();
+    for (const p of prices) {
+      const barcode = p.barcode || '';
+      if (!barcode) continue;
+
+      const existing = map.get(barcode);
+      if (!existing || p.price < (existing.bestPrice ?? Infinity)) {
+        map.set(barcode, {
+          barcode,
+          name: p.productName || barcode,
+          brand: p.brand,
+          imageUrl: p.imageUrl,
+          bestPrice: p.price,
+          supermarket: p.supermarket,
+          createdAt: p.timestamp || new Date().toISOString(),
+        });
+      }
+    }
+    return Array.from(map.values());
+  } catch (error) {
+    console.warn('[productService] getProducts fallback to local cache:', error);
+    return getLocalProducts();
+  }
 };

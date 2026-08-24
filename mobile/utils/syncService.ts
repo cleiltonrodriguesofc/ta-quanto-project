@@ -1,5 +1,6 @@
 import { api } from './api';
 import { getStoredPrices, clearStoredPrices, saveLocalProducts, saveLocalSupermarkets } from './storage';
+import { getSupermarketsUseCase } from '@/src/application';
 
 export const syncOfflineData = async (): Promise<{ syncedCount: number; errors: string[] }> => {
   const errors: string[] = [];
@@ -18,4 +19,22 @@ export const syncOfflineData = async (): Promise<{ syncedCount: number; errors: 
   }
 
   return { syncedCount, errors };
+};
+
+/**
+ * Baixa dados do servidor (supermercados) e salva localmente
+ * para uso offline. Chamado após o login bem-sucedido.
+ */
+export const hydrateLocalCache = async (): Promise<void> => {
+  try {
+    const supermarkets = await getSupermarketsUseCase.execute().catch(() => []);
+    if (supermarkets.length > 0) {
+      // Converte para o formato esperado pelo storage
+      const raw = supermarkets.map((s: any) => ({ id: s.id, name: s.name, address: s.address }));
+      await saveLocalSupermarkets(raw as any);
+    }
+    console.log('[syncService] Cache local hidratado com sucesso');
+  } catch (error: any) {
+    console.warn('[syncService] Falha ao hidratar cache:', error.message);
+  }
 };
