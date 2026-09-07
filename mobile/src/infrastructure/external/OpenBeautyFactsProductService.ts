@@ -1,12 +1,12 @@
 import { ExternalProductResult } from './CosmosProductService';
 
 /**
- * Busca produto na base colaborativa Open Food Facts (alimentos).
- * 100% gratuito, sem API key.
- * Prioriza nome em português (pt-BR), depois inglês, depois genérico.
+ * Busca produto na base colaborativa Open Beauty Facts (cosméticos e higiene).
+ * Mesma estrutura do Open Food Facts — 100% gratuito, sem API key.
+ * Boa cobertura para produtos de higiene pessoal, maquiagem e perfumaria.
  */
-export class OpenFoodFactsProductService {
-  private readonly BASE_URL = 'https://world.openfoodfacts.org/api/v2/product';
+export class OpenBeautyFactsProductService {
+  private readonly BASE_URL = 'https://world.openbeautyfacts.org/api/v2/product';
   private readonly USER_AGENT = 'TaQuanto/1.0 (contato@taquanto.app)';
 
   async fetchByBarcode(barcode: string): Promise<ExternalProductResult | null> {
@@ -23,7 +23,6 @@ export class OpenFoodFactsProductService {
 
       const p = data.product;
 
-      // Preferência: nome em PT-BR → EN → genérico
       const name =
         p.product_name_pt ||
         p.product_name_en ||
@@ -33,12 +32,7 @@ export class OpenFoodFactsProductService {
       if (!name) return null;
 
       const brand = p.brands?.split(',')[0]?.trim() || '';
-
-      // Imagem: frente do produto tem prioridade
-      const imageUrl =
-        p.image_front_url ||
-        p.image_url ||
-        '';
+      const imageUrl = p.image_front_url || p.image_url || '';
 
       return {
         barcode,
@@ -47,7 +41,7 @@ export class OpenFoodFactsProductService {
         imageUrl: imageUrl || undefined,
       };
     } catch (error) {
-      console.error('[OpenFoodFactsProductService] Erro ao buscar produto:', error);
+      console.error('[OpenBeautyFactsProductService] Erro ao buscar produto:', error);
       return null;
     }
   }

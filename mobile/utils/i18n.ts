@@ -1,32 +1,25 @@
 import i18next from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import * as Localization from 'expo-localization';
 import ptBR from '../locales/pt-BR.json';
-import enUS from '../locales/en-US.json';
 
-const resources = {
-    'pt-BR': { translation: ptBR },
-    'en-US': { translation: enUS },
-};
-
+/**
+ * TaQuanto é um app 100% em português (pt-BR).
+ * O idioma é fixo — não detecta o locale do dispositivo.
+ * O arquivo en-US.json é mantido apenas como referência/backup.
+ */
 const initI18n = async () => {
-    const locales = Localization.getLocales();
-    const deviceLanguage = locales[0]?.languageTag || 'pt-BR';
-
-    // Fallback to pt-BR if language not supported, or if it's just 'pt'
-    const languageToUse = deviceLanguage.startsWith('en') ? 'en-US' : 'pt-BR';
-
-    await // eslint-disable-next-line import/no-named-as-default-member
-        i18next
-            .use(initReactI18next)
-            .init({
-                resources,
-                lng: languageToUse,
-                fallbackLng: 'pt-BR',
-                interpolation: {
-                    escapeValue: false,
-                },
-            });
+    await i18next
+        .use(initReactI18next)
+        .init({
+            resources: {
+                'pt-BR': { translation: ptBR },
+            },
+            lng: 'pt-BR',
+            fallbackLng: 'pt-BR',
+            interpolation: {
+                escapeValue: false,
+            },
+        });
 };
 
 initI18n();

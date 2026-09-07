@@ -3,55 +3,102 @@ import { Product } from '@/src/domain/entities';
 import {
   CosmosProductService,
   OpenFoodFactsProductService,
+  OpenBeautyFactsProductService,
   UPCItemDBProductService,
+  GoUPCProductService,
+  ExternalProductResult,
 } from '@/src/infrastructure/external';
 
+/**
+ * LookupProductUseCase — busca informações de produto por código de barras.
+ *
+ * Estratégia em 3 etapas para minimizar latência:
+ *
+ * 0. Cache local (AsyncStorage) → instantâneo
+ * 1. Grupo rápido: Cosmos (BR) + OpenFoodFacts (global alimentos)
+ *    → Promise.race: retorna assim que qualquer uma responder
+ * 2. Grupo estendido: OpenBeautyFacts + UPCItemDB + GoUPC
+ *    → Promise.race: cobre cosméticos e EAN internacionais
+ *
+ * Qualquer resultado encontrado é salvo em cache (fire-and-forget).
+ */
 export class LookupProductUseCase {
-  private openFoodFacts = new OpenFoodFactsProductService();
-  private upcItemDB = new UPCItemDBProductService();
   private cosmos = new CosmosProductService();
+  private openFoodFacts = new OpenFoodFactsProductService();
+  private openBeautyFacts = new OpenBeautyFactsProductService();
+  private upcItemDB = new UPCItemDBProductService();
+  private goUPC = new GoUPCProductService();
 
   constructor(private productRepo: IProductRepository) {}
 
   async execute(barcode: string): Promise<Product | null> {
-    // 1. Check DB/Cache repository
+    // Etapa 0: cache local — zero latência de rede
     const cached = await this.productRepo.getByBarcode(barcode);
     if (cached) {
-      console.log('[LookupProductUseCase] Product found in repository cache:', barcode);
+      console.log('[LookupProduct] Cache local hit:', barcode);
       return cached;
     }
 
-    // 2. Fallback: OpenFoodFacts (Public)
-    console.log('[LookupProductUseCase] Querying OpenFoodFacts:', barcode);
-    const offResult = await this.openFoodFacts.fetchByBarcode(barcode);
-    if (offResult && offResult.name) {
-      return this.persistAndReturn(offResult);
+    // Etapa 1: Cosmos (melhor para BR) + OpenFoodFacts (alimentos globais)
+    // → corrida paralela: quem responder primeiro com dados válidos vence
+    console.log('[LookupProduct] Buscando em Cosmos + OpenFoodFacts em paralelo...');
+    const grupoRapido = await this.raceValidResult([
+      this.cosmos.fetchByBarcode(barcode),
+      this.openFoodFacts.fetchByBarcode(barcode),
+    ]);
+
+    if (grupoRapido) {
+      console.log('[LookupProduct] Encontrado no grupo rápido:', grupoRapido.name);
+      return this.persistAndReturn(grupoRapido);
     }
 
-    // 3. Fallback: UPCitemdb (Public)
-    console.log('[LookupProductUseCase] Querying UPCitemdb:', barcode);
-    const upcResult = await this.upcItemDB.fetchByBarcode(barcode);
-    if (upcResult && upcResult.name) {
-      return this.persistAndReturn(upcResult);
+    // Etapa 2: OpenBeautyFacts + UPCItemDB + GoUPC (cosméticos + EAN internacionais)
+    console.log('[LookupProduct] Buscando em OpenBeautyFacts + UPCItemDB + GoUPC em paralelo...');
+    const grupoEstendido = await this.raceValidResult([
+      this.openBeautyFacts.fetchByBarcode(barcode),
+      this.upcItemDB.fetchByBarcode(barcode),
+      this.goUPC.fetchByBarcode(barcode),
+    ]);
+
+    if (grupoEstendido) {
+      console.log('[LookupProduct] Encontrado no grupo estendido:', grupoEstendido.name);
+      return this.persistAndReturn(grupoEstendido);
     }
 
-    // 4. Fallback: Cosmos API (Private/Paid token)
-    console.log('[LookupProductUseCase] Querying Cosmos API:', barcode);
-    const cosmosResult = await this.cosmos.fetchByBarcode(barcode);
-    if (cosmosResult && cosmosResult.name) {
-      return this.persistAndReturn(cosmosResult);
-    }
-
+    console.log('[LookupProduct] Produto não encontrado em nenhuma fonte:', barcode);
     return null;
   }
 
-  private async persistAndReturn(result: {
-    barcode: string;
-    name: string;
-    brand?: string;
-    imageUrl?: string;
-    price?: number;
-  }): Promise<Product> {
+  /**
+   * Executa todas as promises em paralelo e retorna o PRIMEIRO resultado
+   * válido (com nome preenchido). Ignora erros individuais.
+   */
+  private async raceValidResult(
+    promises: Promise<ExternalProductResult | null>[],
+  ): Promise<ExternalProductResult | null> {
+    return new Promise(resolve => {
+      let settled = 0;
+      const total = promises.length;
+
+      promises.forEach(p => {
+        p.then(result => {
+          if (result?.name) {
+            resolve(result);
+          }
+        }).catch(() => {
+          // falha silenciosa — outras fontes podem resolver
+        }).finally(() => {
+          settled++;
+          if (settled === total) {
+            // Todas terminaram sem resultado válido
+            resolve(null);
+          }
+        });
+      });
+    });
+  }
+
+  private async persistAndReturn(result: ExternalProductResult): Promise<Product> {
     const product: Product = {
       barcode: result.barcode,
       name: result.name,
@@ -61,9 +108,9 @@ export class LookupProductUseCase {
       createdAt: new Date().toISOString(),
     };
 
-    // Fire and forget cache save
+    // Salva no cache em background (não bloqueia o retorno)
     this.productRepo.save(product).catch(err => {
-      console.warn('[LookupProductUseCase] Failed to cache product:', err);
+      console.warn('[LookupProduct] Falha ao salvar no cache:', err);
     });
 
     return product;
