@@ -24,7 +24,7 @@ jest.mock('expo-router', () => ({
 // Mock AuthContext
 jest.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
-    session: { user: { id: 'test-user-id' } },
+    session: { userId: 'test-user-id', email: 'test@example.com', accessToken: 'mock-token' },
     isAdmin: false,
   }),
 }));

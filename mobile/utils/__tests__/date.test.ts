@@ -12,12 +12,12 @@ describe('Date Utils', () => {
   });
 
   describe('formatTimeAgo', () => {
-    it('should return "Just now" for recent timestamps', () => {
+    it('should return "Agora mesmo" for recent timestamps', () => {
       const recentDate = new Date('2024-01-01T11:59:30.000Z'); // 30 seconds ago
       
       const result = formatTimeAgo(recentDate);
       
-      expect(result).toBe('Just now');
+      expect(result).toBe('Agora mesmo');
     });
 
     it('should return minutes for timestamps within an hour', () => {
@@ -25,7 +25,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(minutesAgo);
       
-      expect(result).toBe('15 minutes ago');
+      expect(result).toBe('há 15 minutos');
     });
 
     it('should return singular minute for 1 minute ago', () => {
@@ -33,7 +33,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(oneMinuteAgo);
       
-      expect(result).toBe('1 minute ago');
+      expect(result).toBe('há 1 minuto');
     });
 
     it('should return hours for timestamps within a day', () => {
@@ -41,7 +41,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(hoursAgo);
       
-      expect(result).toBe('3 hours ago');
+      expect(result).toBe('há 3 horas');
     });
 
     it('should return singular hour for 1 hour ago', () => {
@@ -49,7 +49,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(oneHourAgo);
       
-      expect(result).toBe('1 hour ago');
+      expect(result).toBe('há 1 hora');
     });
 
     it('should return days for timestamps within a week', () => {
@@ -57,7 +57,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(daysAgo);
       
-      expect(result).toBe('3 days ago');
+      expect(result).toBe('há 3 dias');
     });
 
     it('should return singular day for 1 day ago', () => {
@@ -65,7 +65,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(oneDayAgo);
       
-      expect(result).toBe('1 day ago');
+      expect(result).toBe('há 1 dia');
     });
 
     it('should return weeks for older timestamps', () => {
@@ -73,7 +73,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(weeksAgo);
       
-      expect(result).toBe('2 weeks ago');
+      expect(result).toBe('há 2 semanas');
     });
 
     it('should return singular week for 1 week ago', () => {
@@ -81,7 +81,7 @@ describe('Date Utils', () => {
       
       const result = formatTimeAgo(oneWeekAgo);
       
-      expect(result).toBe('1 week ago');
+      expect(result).toBe('há 1 semana');
     });
   });
 });

@@ -26,10 +26,10 @@ jest.mock('react-i18next', () => {
 });
 
 jest.mock('@/context/AuthContext', () => {
-    const stableUser = { id: 'test-user-id' };
+    const stableSession = { userId: 'test-user-id', email: 'test@example.com', accessToken: 'mock-token' };
     return {
         useAuth: () => ({
-            user: stableUser,
+            session: stableSession,
         }),
     };
 });
