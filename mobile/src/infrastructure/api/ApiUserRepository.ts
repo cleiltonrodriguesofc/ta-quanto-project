@@ -17,8 +17,8 @@ export class ApiUserRepository implements IUserRepository {
   async save(user: User): Promise<void> {
     try {
       await apiClient.put('/api/v1/users/me', {
-        name: user.name,
-        avatar_url: (user as any).avatar_url || (user as any).avatarUrl,
+        name: user.displayName,
+        avatar_url: (user as any).avatar_url || user.avatarId,
       });
     } catch (error) {
       console.error('Erro ao salvar perfil', error);

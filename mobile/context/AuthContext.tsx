@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { authUseCases, AuthSession } from '@/src/application';
+import { authUseCases } from '@/src/application';
+import { AuthSession } from '@/src/domain/repositories';
 
 type AuthContextType = {
   session: AuthSession | null;

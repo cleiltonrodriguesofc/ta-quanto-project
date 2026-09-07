@@ -32,7 +32,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isShopMode, setIsShopMode] = useState(false);
   const [basket, setBasket] = useState<BasketItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user } = useAuth();
+  const { session } = useAuth();
 
   useEffect(() => {
     loadSession();
@@ -48,7 +48,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (storedSupermarket) setSelectedSupermarketState(storedSupermarket);
       if (storedShopMode) setIsShopMode(storedShopMode === 'true');
 
-      const items = await manageBasketUseCase.getItems(user?.id);
+      const items = await manageBasketUseCase.getItems(session?.userId);
       setBasket(items);
     } catch (error) {
       console.error('Failed to load session:', error);
@@ -58,12 +58,12 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   useEffect(() => {
-    if (user?.id) {
-      manageBasketUseCase.getItems(user.id).then(items => {
+    if (session?.userId) {
+      manageBasketUseCase.getItems(session.userId).then(items => {
         if (items.length > 0) setBasket(items);
       });
     }
-  }, [user?.id]);
+  }, [session?.userId]);
 
   const setSelectedSupermarket = async (name: string) => {
     try {
@@ -84,12 +84,12 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const addToBasket = async (item: Omit<BasketItem, 'id'>) => {
-    const newItem = await manageBasketUseCase.addItem(user?.id, item);
+    const newItem = await manageBasketUseCase.addItem(session?.userId, item);
     setBasket(prev => [...prev, newItem]);
   };
 
   const removeFromBasket = async (id: string) => {
-    await manageBasketUseCase.removeItem(user?.id, id);
+    await manageBasketUseCase.removeItem(session?.userId, id);
     setBasket(prev => prev.filter(item => item.id !== id));
   };
 
@@ -97,7 +97,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const existing = basket.find(i => i.id === id);
     if (!existing) return;
 
-    const updated = await manageBasketUseCase.updateQuantity(user?.id, existing, existing.quantity + delta);
+    const updated = await manageBasketUseCase.updateQuantity(session?.userId, existing, existing.quantity + delta);
     setBasket(prev => prev.map(item => (item.id === id ? updated : item)));
   };
 
@@ -105,7 +105,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const existing = basket.find(i => i.id === id);
     if (!existing) return;
 
-    const updated = await manageBasketUseCase.updateQuantity(user?.id, existing, quantity);
+    const updated = await manageBasketUseCase.updateQuantity(session?.userId, existing, quantity);
     setBasket(prev => prev.map(item => (item.id === id ? updated : item)));
   };
 
@@ -114,7 +114,7 @@ export const SupermarketProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const clearBasket = async () => {
-    await manageBasketUseCase.clear(user?.id);
+    await manageBasketUseCase.clear(session?.userId);
     setBasket([]);
   };
 

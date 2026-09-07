@@ -98,18 +98,20 @@ describe('ShopScreen - Saved Lists Management', () => {
     const savedListsMock = [
         {
             id: 'list-1',
+            userId: 'test-user-id',
             name: 'Monthly Shopping',
-            item_count: 5,
-            total_amount: 150.00,
-            created_at: new Date().toISOString(),
+            itemCount: 5,
+            totalAmount: 150.00,
+            createdAt: new Date().toISOString(),
             supermarket: 'Test Market'
         },
         {
             id: 'list-2',
+            userId: 'test-user-id',
             name: 'Weekend BBQ',
-            item_count: 3,
-            total_amount: 85.50,
-            created_at: new Date().toISOString(),
+            itemCount: 3,
+            totalAmount: 85.50,
+            createdAt: new Date().toISOString(),
             supermarket: 'Test Market'
         }
     ];
@@ -195,8 +197,8 @@ describe('ShopScreen - Saved Lists Management', () => {
     it('Scenario 4: Load a List', async () => {
         mockBasketService.fetchUserBaskets.mockResolvedValue(savedListsMock);
         mockBasketService.fetchBasketItems.mockResolvedValue([
-            { barcode: '111', productName: 'Item 1', price: 10, quantity: 2, imageUrl: '' },
-            { barcode: '222', productName: 'Item 2', price: 20, quantity: 1, imageUrl: '' }
+            { id: 'item-1', basketId: 'list-1', barcode: '111', productName: 'Item 1', price: 10, quantity: 2, imageUrl: '' },
+            { id: 'item-2', basketId: 'list-1', barcode: '222', productName: 'Item 2', price: 20, quantity: 1, imageUrl: '' }
         ]);
 
         // Mock Alert to auto-confirm load

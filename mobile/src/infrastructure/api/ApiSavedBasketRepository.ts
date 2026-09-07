@@ -1,4 +1,6 @@
 import { BasketItem, SavedBasket, SavedBasketItem } from '../../domain/entities';
+import { ISavedBasketRepository } from '../../domain/repositories';
+import { apiClient } from './apiClient';
 
 export class ApiSavedBasketRepository implements ISavedBasketRepository {
   async getAll(userId: string): Promise<SavedBasket[]> {
@@ -57,7 +59,6 @@ export class ApiSavedBasketRepository implements ISavedBasketRepository {
           price: item.price,
           quantity: item.quantity,
           image_url: item.imageUrl,
-          brand: item.brand,
         }))
       });
       const b = response.data;
@@ -86,13 +87,12 @@ export class ApiSavedBasketRepository implements ISavedBasketRepository {
     try {
       await apiClient.put(`/api/v1/saved-baskets/${basketId}`, {
         total_amount: totalAmount,
-        items: items.map(item => ({
+         items: items.map(item => ({
           barcode: item.barcode,
           product_name: item.productName,
           price: item.price,
           quantity: item.quantity,
           image_url: item.imageUrl,
-          brand: item.brand,
         }))
       });
     } catch (error) {

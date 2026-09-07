@@ -86,7 +86,14 @@ describe('RegisterScreen', () => {
   });
 
   it('should save price entry successfully', async () => {
-    mockStorage.savePriceEntry.mockResolvedValue();
+    mockStorage.savePriceEntry.mockResolvedValue({
+      id: 'mock-id',
+      productName: 'Test Product',
+      barcode: '123456',
+      price: 4.99,
+      supermarket: 'LocalMart',
+      timestamp: new Date().toISOString(),
+    });
 
     const { getByPlaceholderText, getByText } = render(
       <SupermarketProvider>

@@ -19,7 +19,7 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_PRESETS[0]);
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(AVATAR_PRESETS[0]);
   const [levelInfo, setLevelInfo] = useState({ level: 1, progress: 0, totalNeeded: 50, percent: 0 });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +31,7 @@ export default function ProfileScreen() {
     setProfile(userProfile);
     if (userProfile) {
       setDisplayName(userProfile.displayName || '');
-      setSelectedAvatar(userProfile.avatarId || 'avatar1');
+      setSelectedAvatar((userProfile.avatarId as string) || 'avatar1');
       const points = (userProfile.stats?.pricesShared || 0) * 10;
       setLevelInfo(calculateNextLevelProgress(points));
 
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
     });
 
     if (!result.canceled) {
-      setSelectedAvatar(result.assets[0].uri);
+      setSelectedAvatar(result.assets[0].uri as string);
     }
   };
 
@@ -92,7 +92,7 @@ export default function ProfileScreen() {
       const newProfile: UserProfile = {
         id: session?.userId || profile?.id || Date.now().toString(),
         displayName: displayName.trim(),
-        avatarId: finalAvatarId,
+        avatarId: finalAvatarId as string,
         joinedDate: profile?.joinedDate || new Date().toISOString(),
         stats: profile?.stats || { pricesShared: 0, totalSavings: 0, streakDays: 0, rank: 0 },
         // Initialize settings/gamification if missing
@@ -207,7 +207,7 @@ export default function ProfileScreen() {
                       { backgroundColor: getAvatarColor(avatar) },
                       selectedAvatar === avatar && styles.avatarSelected
                     ]}
-                    onPress={() => setSelectedAvatar(avatar)}
+                    onPress={() => setSelectedAvatar(avatar as string)}
                   >
                     {selectedAvatar === avatar && !isCustomAvatar(selectedAvatar) && <View style={styles.selectedDot} />}
                   </TouchableOpacity>
