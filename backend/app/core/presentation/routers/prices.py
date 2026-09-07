@@ -56,6 +56,14 @@ async def get_prices_by_barcode(barcode: str, db: AsyncSession = Depends(get_db)
     return [_to_out(p) for p in result.scalars().all()]
 
 
+@router.get("/user/{user_id}", response_model=list[PriceOut])
+async def get_prices_by_user(user_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(PriceModel).where(PriceModel.user_id == user_id).order_by(desc(PriceModel.created_at))
+    )
+    return [_to_out(p) for p in result.scalars().all()]
+
+
 @router.post("/", response_model=PriceOut, status_code=201)
 async def register_price(
     body: RegisterPriceRequest,

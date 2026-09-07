@@ -1,13 +1,13 @@
 import {
   apiAuthService,
+  apiPriceRepository,
+  apiSavedBasketRepository,
 } from '@/src/infrastructure/api';
 
 import {
-  supabasePriceRepository,
   supabaseProductRepository,
   supabaseUserRepository,
   supabaseSupermarketRepository,
-  supabaseSavedBasketRepository,
 } from '@/src/infrastructure/supabase';
 
 import {
@@ -36,26 +36,26 @@ import {
 // Auth: FastAPI JWT próprio (não muda)
 export const authUseCases = new AuthUseCases(apiAuthService);
 
-// Dados: Supabase como banco de dados
+// Dados: FastAPI backend para preços e carrinhos salvos (evita erros RLS do Supabase)
 export const getCommunityPricesUseCase = new GetCommunityPricesUseCase(
-  supabasePriceRepository,
+  apiPriceRepository,
   asyncStoragePriceRepository,
 );
 
 export const getPricesByBarcodeUseCase = new GetPricesByBarcodeUseCase(
-  supabasePriceRepository,
+  apiPriceRepository,
   asyncStoragePriceRepository,
 );
 
 export const registerPriceUseCase = new RegisterPriceUseCase(
   asyncStoragePriceRepository,
-  supabasePriceRepository,
+  apiPriceRepository,
 );
 
 export const lookupProductUseCase = new LookupProductUseCase(supabaseProductRepository);
 
 export const getProductsBySupermarketUseCase = new GetProductsBySupermarketUseCase(
-  supabasePriceRepository,
+  apiPriceRepository,
 );
 
 export const getUserProfileUseCase = new GetUserProfileUseCase(
@@ -72,11 +72,11 @@ export const uploadAvatarUseCase = new UploadAvatarUseCase(supabaseUserRepositor
 
 export const manageBasketUseCase = new ManageBasketUseCase(
   asyncStorageBasketRepository,
-  supabaseSavedBasketRepository as any,
+  apiSavedBasketRepository as any,
 );
 
 export const manageSavedBasketUseCase = new ManageSavedBasketUseCase(
-  supabaseSavedBasketRepository,
+  apiSavedBasketRepository,
 );
 
 export const getSupermarketsUseCase = new GetSupermarketsUseCase(

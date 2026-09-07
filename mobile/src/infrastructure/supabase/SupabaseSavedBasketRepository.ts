@@ -33,35 +33,48 @@ export class SupabaseSavedBasketRepository implements ISavedBasketRepository {
     items: BasketItem[],
     totalAmount: number,
   ): Promise<SavedBasket> {
-    const rpcItems = items.map(item => ({
-      barcode: item.barcode,
-      productName: item.productName,
-      price: item.price,
-      quantity: item.quantity,
-      imageUrl: item.imageUrl,
-    }));
+    const { data: basket, error: basketError } = await this.client
+      .from('saved_baskets')
+      .insert({
+        user_id: userId,
+        name: name,
+        supermarket: supermarket,
+        total_amount: totalAmount,
+        item_count: items.length,
+      })
+      .select()
+      .single();
 
-    const { data, error } = await this.client.rpc('create_basket', {
-      p_name: name,
-      p_supermarket: supermarket,
-      p_total_amount: totalAmount,
-      p_item_count: items.length,
-      p_items: rpcItems,
-    });
+    if (basketError) throw basketError;
 
-    if (error) throw error;
-    if (data && !data.success) {
-      throw new Error(data.error || 'Failed to create saved basket via RPC');
+    if (items.length > 0) {
+      const basketItems = items.map(item => ({
+        basket_id: basket.id,
+        barcode: item.barcode,
+        product_name: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+        image_url: item.imageUrl,
+      }));
+
+      const { error: itemsError } = await this.client
+        .from('saved_basket_items')
+        .insert(basketItems);
+      
+      if (itemsError) {
+        await this.client.from('saved_baskets').delete().eq('id', basket.id);
+        throw itemsError;
+      }
     }
 
     return {
-      id: data.id,
+      id: basket.id,
       userId,
       name,
       supermarket,
       totalAmount,
       itemCount: items.length,
-      createdAt: new Date().toISOString(),
+      createdAt: basket.created_at,
     };
   }
 

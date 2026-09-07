@@ -114,6 +114,65 @@ async def delete_basket(
     await db.commit()
 
 
+class UpdateBasketRequest(BaseModel):
+    total_amount: float
+    items: List[BasketItemIn]
+
+@router.put("/{basket_id}", response_model=BasketOut)
+async def update_basket(
+    basket_id: str,
+    body: UpdateBasketRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    basket = await _get_own_basket(db, basket_id, current_user.id)
+    basket.total_amount = body.total_amount
+    
+    # Delete old items
+    for item in basket.items:
+        await db.delete(item)
+    await db.flush()
+    
+    # Add new items
+    for item_data in body.items:
+        new_item = SavedBasketItemModel(basket_id=basket.id, **item_data.model_dump())
+        db.add(new_item)
+        
+    await db.commit()
+    # Reload
+    return await get_basket_by_id(basket_id, db, current_user)
+
+
+class RenameBasketRequest(BaseModel):
+    name: str
+
+@router.patch("/{basket_id}", response_model=BasketOut)
+async def rename_basket(
+    basket_id: str,
+    body: RenameBasketRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    basket = await _get_own_basket(db, basket_id, current_user.id)
+    basket.name = body.name
+    await db.commit()
+    return await get_basket_by_id(basket_id, db, current_user)
+
+async def get_basket_by_id(basket_id: str, db: AsyncSession, current_user: UserModel) -> BasketOut:
+    result = await db.execute(
+        select(SavedBasketModel)
+        .where(
+            SavedBasketModel.id == basket_id,
+            SavedBasketModel.user_id == current_user.id,
+        )
+        .options(selectinload(SavedBasketModel.items))
+    )
+    basket = result.scalar_one_or_none()
+    if not basket:
+        raise HTTPException(status_code=404, detail="Lista não encontrada")
+    return _basket_to_out(basket)
+
+
 async def _get_own_basket(db: AsyncSession, basket_id: str, user_id: str) -> SavedBasketModel:
     result = await db.execute(
         select(SavedBasketModel)
