@@ -2,13 +2,10 @@ import {
   apiAuthService,
   apiPriceRepository,
   apiSavedBasketRepository,
+  apiProductRepository,
+  apiUserRepository,
+  apiSupermarketRepository,
 } from '@/src/infrastructure/api';
-
-import {
-  supabaseProductRepository,
-  supabaseUserRepository,
-  supabaseSupermarketRepository,
-} from '@/src/infrastructure/supabase';
 
 import {
   asyncStoragePriceRepository,
@@ -52,23 +49,23 @@ export const registerPriceUseCase = new RegisterPriceUseCase(
   apiPriceRepository,
 );
 
-export const lookupProductUseCase = new LookupProductUseCase(supabaseProductRepository);
+export const lookupProductUseCase = new LookupProductUseCase(apiProductRepository);
 
 export const getProductsBySupermarketUseCase = new GetProductsBySupermarketUseCase(
   apiPriceRepository,
 );
 
 export const getUserProfileUseCase = new GetUserProfileUseCase(
-  supabaseUserRepository,
+  apiUserRepository,
   asyncStorageUserRepository,
 );
 
 export const saveUserProfileUseCase = new SaveUserProfileUseCase(
   asyncStorageUserRepository,
-  supabaseUserRepository,
+  apiUserRepository,
 );
 
-export const uploadAvatarUseCase = new UploadAvatarUseCase(supabaseUserRepository);
+export const uploadAvatarUseCase = new UploadAvatarUseCase(apiUserRepository);
 
 export const manageBasketUseCase = new ManageBasketUseCase(
   asyncStorageBasketRepository,
@@ -80,12 +77,12 @@ export const manageSavedBasketUseCase = new ManageSavedBasketUseCase(
 );
 
 export const getSupermarketsUseCase = new GetSupermarketsUseCase(
-  supabaseSupermarketRepository,
+  apiSupermarketRepository,
   asyncStorageSupermarketRepository,
 );
 
 export const getNearestSupermarketUseCase = new GetNearestSupermarketUseCase(
-  supabaseSupermarketRepository,
+  apiSupermarketRepository,
 );
 
 export * from './use-cases';

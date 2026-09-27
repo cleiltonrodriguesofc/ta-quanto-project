@@ -67,12 +67,20 @@ export class ApiPriceRepository implements IPriceRepository {
   }
 
   async batchUpload(prices: NewPrice[]): Promise<void> {
+    const failed: NewPrice[] = [];
     for (const p of prices) {
       try {
         await this.add(p);
       } catch (e) {
-        // Ignora erros individuais em lote
+        failed.push(p);
       }
     }
+    
+    if (failed.length === prices.length && prices.length > 0) {
+      throw new Error('Todas as tentativas de upload falharam. Possivelmente offline.');
+    }
+    
+    // Ideally we should only clear the successful ones from local storage, 
+    // but for now, we just throw if EVERYTHING fails so we don't wipe the queue.
   }
 }

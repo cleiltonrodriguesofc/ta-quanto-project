@@ -8,16 +8,15 @@ export class RegisterPriceUseCase {
   ) {}
 
   async execute(price: NewPrice): Promise<Price> {
-    // 1. Save locally for instant UI update / offline support
-    const savedLocal = await this.localPriceRepo.add(price);
-
-    // 2. Sync with remote
     try {
-      await this.remotePriceRepo.add(price);
+      // 1. Try to save remotely first
+      const savedRemote = await this.remotePriceRepo.add(price);
+      return savedRemote;
     } catch (error) {
-      console.warn('[RegisterPriceUseCase] Saved locally only. Remote sync failed:', error);
+      console.warn('[RegisterPriceUseCase] Remote sync failed, saving locally for offline sync:', error);
+      // 2. Fallback to local storage if remote fails
+      const savedLocal = await this.localPriceRepo.add(price);
+      return savedLocal;
     }
-
-    return savedLocal;
   }
 }

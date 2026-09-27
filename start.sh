@@ -12,7 +12,8 @@ if [ -z "$LOCAL_IP" ]; then
 fi
 
 TUNNEL_SUBDOMAIN="taquantoapp-cleilton"
-TUNNEL_DOMAIN="https://${TUNNEL_SUBDOMAIN}.loca.lt"
+# O LocalTunnel (loca.lt) está instável. Usaremos localhost.run para o backend de forma dinâmica.
+TUNNEL_DOMAIN="Túnel Dinâmico (localhost.run)"
 
 # .env do próprio projeto (onde o NGROK_AUTHTOKEN fica salvo)
 PROJECT_ENV="$PROJECT_DIR/backend/.env"
@@ -33,15 +34,15 @@ trap cleanup SIGINT SIGTERM
 echo "=================================================="
 echo "🛒 TAQUANTO? — SELECIONE O MODO DE EXECUÇÃO"
 echo "=================================================="
-echo "1) Localtunnel completo (Backend + Tunnel + Expo via tunnel)"
+echo "1) Túnel Completo (Backend via ssh + Expo via tunnel)"
 echo "   ↳ API:   ${TUNNEL_DOMAIN}"
 echo "   ↳ Metro: tunnel — Expo Go funciona sem rede local"
 echo "2) Rede Local (Backend + Expo via LAN)"
 echo "   ↳ URL: http://${LOCAL_IP}:8000"
 echo "3) Apenas Backend (FastAPI)"
-echo "4) Apenas Frontend — Expo via tunnel"
-echo "5) Apenas Localtunnel (Porta 8000)"
-echo "6) Backend + Localtunnel (sem Expo) — para APK instalado no celular"
+echo "4) Apenas Frontend — Expo via tunnel (Requer Backend já online)"
+echo "5) Apenas Tunnel SSH (Porta 8000)"
+echo "6) Backend + Tunnel SSH (sem Expo) — para APK instalado no celular"
 echo "   ↳ API via túnel: ${TUNNEL_DOMAIN}"
 echo "=================================================="
 
@@ -83,59 +84,40 @@ start_backend() {
 }
 
 start_tunnel() {
-    local MAX_RETRIES=10
-    local RETRY_WAIT=15
+    echo "🌐 Iniciando Túnel SSH (localhost.run) para o backend..."
+    
+    LT_LOG="/tmp/lt_taquanto_$$.log"
+    rm -f "$LT_LOG"
 
-    echo "🌐 Iniciando Localtunnel no subdomínio '${TUNNEL_SUBDOMAIN}'..."
+    ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run > "$LT_LOG" 2>&1 &
+    TUNNEL_PID=$!
 
-    for attempt in $(seq 1 $MAX_RETRIES); do
-        LT_LOG="/tmp/lt_taquanto_$$.log"
-        rm -f "$LT_LOG"
+    echo "⏳ Aguardando obtenção da URL do túnel..."
 
-        npx localtunnel --port 8000 --subdomain "$TUNNEL_SUBDOMAIN" > "$LT_LOG" 2>&1 &
-        TUNNEL_PID=$!
-
-        echo "⏳ Tentativa ${attempt}/${MAX_RETRIES} — aguardando resposta do túnel..."
-
-        for i in {1..12}; do
-            if grep -q "your url is:" "$LT_LOG" 2>/dev/null; then
-                break
-            fi
-            sleep 1
-        done
-
-        ACTUAL_TUNNEL_URL=$(grep "your url is:" "$LT_LOG" 2>/dev/null | awk '{print $4}')
-
-        if [ "$ACTUAL_TUNNEL_URL" = "$TUNNEL_DOMAIN" ]; then
-            echo "✅ Subdomínio correto obtido: ${ACTUAL_TUNNEL_URL}"
-            update_mobile_env "$ACTUAL_TUNNEL_URL"
-            return 0
+    ACTUAL_TUNNEL_URL=""
+    for i in {1..15}; do
+        ACTUAL_TUNNEL_URL=$(grep -o 'https://[a-zA-Z0-9-]*\.lhr\.life' "$LT_LOG" | head -n 1)
+        if [ -n "$ACTUAL_TUNNEL_URL" ]; then
+            break
         fi
-
-        echo "⚠️  Subdomínio indisponível (obteve: '${ACTUAL_TUNNEL_URL:-nenhum}'). Aguardando ${RETRY_WAIT}s para nova tentativa..."
-        kill "$TUNNEL_PID" 2>/dev/null
-        wait "$TUNNEL_PID" 2>/dev/null
-        TUNNEL_PID=""
-        sleep "$RETRY_WAIT"
+        sleep 1
     done
 
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "❌ ERRO: Não foi possível obter o subdomínio '${TUNNEL_DOMAIN}'"
-    echo "   após ${MAX_RETRIES} tentativas."
-    echo ""
-    echo "   Possíveis causas:"
-    echo "   • Outra sessão sua ainda está segurando o subdomínio"
-    echo "   • O servidor loca.lt está com instabilidade"
-    echo ""
-    echo "   O que fazer:"
-    echo "   1. Aguarde ~2 minutos e rode o script novamente (opção 6)"
-    echo "   2. Se persistir, acesse ${TUNNEL_DOMAIN} no navegador"
-    echo "      para forçar liberação do subdomínio"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "⚙️  O backend continua rodando em http://localhost:8000"
-    echo "   Pressione Ctrl+C para encerrar."
+    if [ -n "$ACTUAL_TUNNEL_URL" ]; then
+        echo "✅ URL do túnel obtida: ${ACTUAL_TUNNEL_URL}"
+        update_mobile_env "$ACTUAL_TUNNEL_URL"
+        
+        # Para opção 4, salva a URL num arquivo temporário
+        echo "$ACTUAL_TUNNEL_URL" > /tmp/taquanto_tunnel_url.txt
+        return 0
+    else
+        echo "⚠️  Não foi possível obter a URL via localhost.run."
+        echo "LOG:"
+        cat "$LT_LOG"
+        echo ""
+        echo "⚙️  O backend continua rodando em http://localhost:8000"
+        return 1
+    fi
 }
 
 # Configura o authtoken do ngrok (lido do backend/.env do próprio projeto)
@@ -186,17 +168,23 @@ case "$CHOICE" in
         wait $BACKEND_PID
         ;;
     4)
-        update_mobile_env "$TUNNEL_DOMAIN"
+        if [ -f /tmp/taquanto_tunnel_url.txt ]; then
+            ACTUAL_TUNNEL_URL=$(cat /tmp/taquanto_tunnel_url.txt)
+            update_mobile_env "$ACTUAL_TUNNEL_URL"
+        else
+            echo "⚠️  Aviso: Nenhuma URL de túnel dinâmico encontrada."
+            echo "Certifique-se de ter rodado o túnel (Opção 1, 5 ou 6) primeiro."
+        fi
         start_frontend_tunnel
         ;;
     5)
-        npx localtunnel --port 8000 --subdomain "$TUNNEL_SUBDOMAIN"
+        ssh -o StrictHostKeyChecking=no -R 80:localhost:8000 nokey@localhost.run
         ;;
     6)
         start_backend
         start_tunnel
         echo ""
-        echo "📱 APK pronto para conectar em: ${ACTUAL_TUNNEL_URL:-$TUNNEL_DOMAIN}/api/v1"
+        echo "📱 APK pronto para conectar em: ${ACTUAL_TUNNEL_URL}/api/v1"
         echo "📌 Pressione Ctrl+C para encerrar o backend e o túnel."
         wait $BACKEND_PID
         ;;

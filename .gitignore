@@ -2,6 +2,7 @@
 # Mobile (React Native / Expo) — mobile/
 # ──────────────────────────────────────────────
 mobile/node_modules/
+mobile/node_modules_old/
 mobile/.expo/
 mobile/dist/
 mobile/web-build/
@@ -62,6 +63,13 @@ tsc_*.txt
 
 # sql scripts
 *.sql
+
+# migration/utility scripts (contêm credenciais)
+backend/migrate_*.py
+backend/generate_sql_dump.py
+backend/test_connection.py
+backend/import_data*.py
+backend/*.json
 
 # tunnel/server logs
 server/tunnel_url*.txt
