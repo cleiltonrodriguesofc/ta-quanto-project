@@ -37,6 +37,11 @@ async def on_startup():
         await conn.run_sync(Base.metadata.create_all)
 
 
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "taquanto-api"}
+
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "taquanto-api"}

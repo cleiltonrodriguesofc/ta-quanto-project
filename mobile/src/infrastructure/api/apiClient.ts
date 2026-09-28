@@ -7,10 +7,11 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 export const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  // 30s para suportar o cold start do Render (plano free hiberna a instância)
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'Bypass-Tunnel-Reminder': 'true', // Essencial para o localtunnel não retornar a página de aviso em HTML
+    'Bypass-Tunnel-Reminder': 'true',
   },
 });
 
