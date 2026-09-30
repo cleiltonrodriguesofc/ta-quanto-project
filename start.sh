@@ -44,12 +44,13 @@ echo "4) Apenas Frontend — Expo via tunnel (Requer Backend já online)"
 echo "5) Apenas Tunnel SSH (Porta 8000)"
 echo "6) Backend + Tunnel SSH (sem Expo) — para APK instalado no celular"
 echo "   ↳ API via túnel: ${TUNNEL_DOMAIN}"
+echo "7) Apenas Frontend (Expo via LAN) — apontando para API no Render"
 echo "=================================================="
 
 if [ -n "$1" ]; then
     CHOICE="$1"
 else
-    read -p "Escolha a opção (1-6) [padrão: 2]: " CHOICE
+    read -p "Escolha a opção (1-7) [padrão: 2]: " CHOICE
     CHOICE=${CHOICE:-2}
 fi
 
@@ -188,8 +189,13 @@ case "$CHOICE" in
         echo "📌 Pressione Ctrl+C para encerrar o backend e o túnel."
         wait $BACKEND_PID
         ;;
+    7)
+        echo "🔗 Apontando o frontend para a API de Produção (Render)..."
+        update_mobile_env "https://taquanto-jv0e.onrender.com"
+        start_frontend_lan
+        ;;
     *)
-        echo "❌ Opção inválida. Use de 1 a 6."
+        echo "❌ Opção inválida. Use de 1 a 7."
         exit 1
         ;;
 esac
