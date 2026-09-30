@@ -5,6 +5,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Configurado via variável de ambiente
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
+console.log('=========================================');
+console.log('🔗 [API CLIENT] VARIÁVEIS DE AMBIENTE:');
+console.log('-> process.env.EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
+console.log('-> API_URL (usada no Axios):', API_URL);
+console.log('=========================================');
+
 export const apiClient = axios.create({
   baseURL: API_URL,
   // 30s para suportar o cold start do Render (plano free hiberna a instância)
