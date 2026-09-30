@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import time
 from datetime import datetime, timezone
 
@@ -9,8 +11,43 @@ from app.core.presentation.routers import auth, prices, products, users, superma
 from app.core.infrastructure.database.session import engine, AsyncSessionLocal
 from app.core.infrastructure.database.models import Base
 
+logger = logging.getLogger("taquanto.heartbeat")
+
 # Registra o instante em que o processo subiu (para calcular uptime)
 _PROCESS_START = time.monotonic()
+
+# Intervalo do heartbeat: 10 min.
+# - Supabase free pausa após 7 dias sem acesso → 10 min é mais que suficiente.
+# - UptimeRobot pingando /health a cada 5 min já resolve o Render;
+#   este heartbeat é o plano B para quando o Render estiver acordado
+#   mas sem tráfego externo por um período longo.
+# - SELECT 1 usa <1KB de memória e <0.1ms de CPU → impacto zero no limite
+#   de compute do Supabase free (500 horas/mês).
+_DB_HEARTBEAT_INTERVAL_SECONDS = 10 * 60  # 10 minutos
+
+_heartbeat_task: asyncio.Task | None = None
+
+
+async def _db_heartbeat_loop() -> None:
+    """Loop assíncrono que faz um SELECT 1 periódico no banco.
+
+    Roda como asyncio.Task — sem thread extra, sem conexão persistente.
+    A cada ciclo abre uma conexão do pool, executa SELECT 1 e a devolve
+    imediatamente ao pool (footprint de memória ~zero entre os pings).
+    """
+    while True:
+        await asyncio.sleep(_DB_HEARTBEAT_INTERVAL_SECONDS)
+        try:
+            async with AsyncSessionLocal() as session:
+                await session.execute(text("SELECT 1"))
+            logger.debug("[DB Heartbeat] ping ok")
+        except asyncio.CancelledError:
+            # Servidor encerrando — sai limpo
+            raise
+        except Exception as exc:
+            # Não deixa o loop morrer por falha pontual de rede
+            logger.warning("[DB Heartbeat] falha no ping: %s", exc)
+
 
 app = FastAPI(
     title="TaQuanto? API",
@@ -39,10 +76,36 @@ app.include_router(basket.router)
 
 
 @app.on_event("startup")
-async def on_startup():
-    """Cria as tabelas no banco se não existirem (desenvolvimento)."""
+async def on_startup() -> None:
+    """Cria as tabelas e inicia o heartbeat do banco."""
+    global _heartbeat_task
+
+    # Garante que o schema existe
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Inicia o heartbeat em background (não bloqueia o startup)
+    _heartbeat_task = asyncio.create_task(
+        _db_heartbeat_loop(),
+        name="db-heartbeat",
+    )
+    logger.info(
+        "[DB Heartbeat] iniciado — intervalo: %ds", _DB_HEARTBEAT_INTERVAL_SECONDS
+    )
+
+
+@app.on_event("shutdown")
+async def on_shutdown() -> None:
+    """Cancela o heartbeat limpo ao encerrar o servidor."""
+    global _heartbeat_task
+    if _heartbeat_task and not _heartbeat_task.done():
+        _heartbeat_task.cancel()
+        try:
+            await _heartbeat_task
+        except asyncio.CancelledError:
+            pass
+    logger.info("[DB Heartbeat] encerrado.")
+
 
 
 @app.get("/")
