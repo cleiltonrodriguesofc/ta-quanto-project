@@ -138,6 +138,7 @@ async def health_check(response: Response):
     - Retorna uptime do processo e timestamp UTC
     - HTTP 200 se tudo ok, HTTP 503 se o DB estiver inacessível
     """
+    global _DB_LAST_PING_TS
     db_ok = False
     db_latency_ms: float | None = None
     db_error: str | None = None
