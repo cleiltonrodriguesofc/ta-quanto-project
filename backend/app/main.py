@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import select
 
 from app.core.presentation.routers import auth, prices, products, users, supermarkets, basket
 from app.core.infrastructure.database.session import engine, AsyncSessionLocal
-from app.core.infrastructure.database.models import Base
+from app.core.infrastructure.database.models import Base, SupermarketModel
 
 logger = logging.getLogger("taquanto.heartbeat")
 
@@ -24,23 +24,39 @@ _PROCESS_START = time.monotonic()
 # - SELECT 1 usa <1KB de memória e <0.1ms de CPU → impacto zero no limite
 #   de compute do Supabase free (500 horas/mês).
 _DB_HEARTBEAT_INTERVAL_SECONDS = 10 * 60  # 10 minutos
+# Cache em memória: evita bater no banco a cada ping externo do /health.
+# O Supabase Free Tier exige acesso REAL ao disco (query ORM) — SELECT 1
+# pode ser interceptado pelo Supavisor sem tocar o banco.
+_DB_LAST_PING_TS: float = 0.0
+_DB_PING_CACHE_TTL: float = 24 * 60 * 60  # 24 horas
 
 _heartbeat_task: asyncio.Task | None = None
 
 
+async def _ping_db_real() -> None:
+    """Executa uma query ORM real na tabela supermarkets.
+
+    Diferente de SELECT 1, esta query bate no disco do Supabase,
+    impedindo a pausa automática do projeto Free Tier.
+    """
+    async with AsyncSessionLocal() as session:
+        await session.execute(select(SupermarketModel).limit(1))
+
+
 async def _db_heartbeat_loop() -> None:
-    """Loop assíncrono que faz um SELECT 1 periódico no banco.
+    """Loop assíncrono que faz um ping periódico real no banco.
 
     Roda como asyncio.Task — sem thread extra, sem conexão persistente.
-    A cada ciclo abre uma conexão do pool, executa SELECT 1 e a devolve
-    imediatamente ao pool (footprint de memória ~zero entre os pings).
+    Usa query ORM em tabela concreta (não SELECT 1) para garantir que
+    o Supabase Free Tier registre atividade real e não pause o projeto.
     """
+    global _DB_LAST_PING_TS
     while True:
         await asyncio.sleep(_DB_HEARTBEAT_INTERVAL_SECONDS)
         try:
-            async with AsyncSessionLocal() as session:
-                await session.execute(text("SELECT 1"))
-            logger.debug("[DB Heartbeat] ping ok")
+            await _ping_db_real()
+            _DB_LAST_PING_TS = time.monotonic()
+            logger.debug("[DB Heartbeat] ping ok (query ORM real)")
         except asyncio.CancelledError:
             # Servidor encerrando — sai limpo
             raise
@@ -127,11 +143,20 @@ async def health_check(response: Response):
     db_error: str | None = None
 
     try:
-        t0 = time.monotonic()
-        async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT 1"))
-        db_latency_ms = round((time.monotonic() - t0) * 1000, 2)
-        db_ok = True
+        now = time.monotonic()
+        cache_hit = (now - _DB_LAST_PING_TS) < _DB_PING_CACHE_TTL
+        if cache_hit:
+            # Banco foi confirmado recentemente — evita round-trip desnecessário
+            db_ok = True
+            db_latency_ms = 0.0
+            logger.debug("[Health] ping servido do cache (%.0fh restantes)",
+                         (_DB_PING_CACHE_TTL - (now - _DB_LAST_PING_TS)) / 3600)
+        else:
+            t0 = time.monotonic()
+            await _ping_db_real()
+            db_latency_ms = round((time.monotonic() - t0) * 1000, 2)
+            _DB_LAST_PING_TS = time.monotonic()
+            db_ok = True
     except Exception as exc:
         db_error = str(exc)
 

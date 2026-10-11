@@ -6,6 +6,14 @@ engine = create_async_engine(
     settings.database_url,
     echo=settings.environment == "development",
     pool_pre_ping=True,
+    connect_args={
+        "ssl": "require",
+        # O transaction pooler do Supabase (porta 6543) usa pgbouncer em
+        # modo transaction, que não suporta prepared statements.
+        # statement_cache_size=0 desativa o cache e resolve o erro:
+        # "prepared statement already exists"
+        "statement_cache_size": 0,
+    },
 )
 
 AsyncSessionLocal = async_sessionmaker(
