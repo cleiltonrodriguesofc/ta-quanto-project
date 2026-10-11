@@ -124,12 +124,12 @@ async def on_shutdown() -> None:
 
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"status": "ok", "service": "taquanto-api"}
 
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check(response: Response):
     """
     Health check completo:

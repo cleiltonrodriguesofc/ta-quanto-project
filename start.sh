@@ -149,6 +149,9 @@ start_frontend_lan() {
     echo "📱 Iniciando Frontend (Expo — Metro via LAN)..."
     cd "$CD_MOBILE" || exit
     export REACT_NATIVE_PACKAGER_HOSTNAME="$LOCAL_IP"
+    # HD externo NTFS não suporta inotify — força polling para o Metro funcionar
+    export CHOKIDAR_USEPOLLING=1
+    export EXPO_USE_METRO_WORKSPACE_ROOT=1
     npx expo start --clear
 }
 
