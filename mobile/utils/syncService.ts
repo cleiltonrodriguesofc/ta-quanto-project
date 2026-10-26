@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from './api';
 import { getStoredPrices, clearStoredPrices, saveLocalProducts, saveLocalSupermarkets } from './storage';
 import { getSupermarketsUseCase } from '@/src/application';
@@ -5,6 +6,12 @@ import { getSupermarketsUseCase } from '@/src/application';
 export const syncOfflineData = async (): Promise<{ syncedCount: number; errors: string[] }> => {
   const errors: string[] = [];
   let syncedCount = 0;
+
+  // Só sincroniza se o usuário estiver autenticado
+  const token = await AsyncStorage.getItem('@auth_access_token');
+  if (!token) {
+    return { syncedCount: 0, errors: [] };
+  }
 
   try {
     const offlinePrices = await getStoredPrices();

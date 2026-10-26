@@ -149,10 +149,12 @@ start_frontend_lan() {
     echo "📱 Iniciando Frontend (Expo — Metro via LAN)..."
     cd "$CD_MOBILE" || exit
     export REACT_NATIVE_PACKAGER_HOSTNAME="$LOCAL_IP"
-    # HD externo NTFS não suporta inotify — força polling para o Metro funcionar
-    export CHOKIDAR_USEPOLLING=1
-    export EXPO_USE_METRO_WORKSPACE_ROOT=1
-    npx expo start --clear
+    # HD externo NTFS não suporta inotify/watchman
+    # → Desabilita workspace root (não monitorar backend/, node_modules_old/, etc.)
+    # → Desabilita watchman (não está instalado; evita travamento na detecção)
+    export EXPO_NO_METRO_WORKSPACE_ROOT=1
+    export WATCHMAN_DISABLED=true
+    npx expo start --lan --clear
 }
 
 case "$CHOICE" in

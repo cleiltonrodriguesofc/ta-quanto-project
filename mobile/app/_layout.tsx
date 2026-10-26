@@ -1,3 +1,13 @@
+// Global error handler — captura erros antes do React renderizar
+if (typeof ErrorUtils !== 'undefined') {
+  const _origHandler = ErrorUtils.getGlobalHandler();
+  ErrorUtils.setGlobalHandler((error: any, isFatal: any) => {
+    console.error('[FATAL ERROR]', error?.message);
+    console.error('[STACK]', error?.stack?.slice(0, 500));
+    if (_origHandler) _origHandler(error, isFatal);
+  });
+}
+
 import { useEffect, useState } from 'react';
 import '@/utils/i18n';
 import { Stack } from 'expo-router';
@@ -110,7 +120,6 @@ export default function RootLayout() {
           <Stack.Screen name="auth/login" />
           <Stack.Screen name="auth/register" />
           <Stack.Screen name="product/[barcode]" />
-          <Stack.Screen name="product/[id]" />
           <Stack.Screen name="supermarket/[id]" />
           <Stack.Screen name="+not-found" />
         </Stack>
