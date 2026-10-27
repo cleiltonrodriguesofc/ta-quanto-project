@@ -10,7 +10,7 @@ import {
   Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams, useIsFocused } from 'expo-router';
 import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
 import { PriceEntry } from '@/types/price';
 import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
@@ -31,6 +31,7 @@ export default function ScanScreen() {
   const { selectedSupermarket } = useSupermarketSession();
   const params = useLocalSearchParams();
   const fromBasket = params.fromBasket as string;
+  const isFocused = useIsFocused();
 
   const [scanned, setScanned] = useState(false);
   const [flash, setFlash] = useState(false);
@@ -226,15 +227,17 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView
-        style={styles.camera}
-        facing="back"
-        enableTorch={flash}
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"],
-        }}
-      />
+      {isFocused && (
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          enableTorch={flash}
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"],
+          }}
+        />
+      )}
 
       {renderStatusOverlay()}
 

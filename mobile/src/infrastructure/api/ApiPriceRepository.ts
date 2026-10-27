@@ -49,13 +49,15 @@ export class ApiPriceRepository implements IPriceRepository {
 
   async add(price: NewPrice): Promise<Price> {
     try {
+      const productName = price.productName || (price as any).product_name || (price as any).name || '';
+      const imageUrl = price.imageUrl || (price as any).image_url;
       const response = await apiClient.post<any>('/api/v1/prices/', {
-        product_name: price.productName,
+        product_name: productName,
         barcode: price.barcode,
         price: price.price,
         supermarket: price.supermarket,
         brand: price.brand,
-        image_url: price.imageUrl,
+        image_url: imageUrl,
         latitude: price.location?.latitude,
         longitude: price.location?.longitude,
       });

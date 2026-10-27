@@ -70,13 +70,32 @@ async def register_price(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
+    product_name = body.product_name.strip() if body.product_name else ""
+    image_url = body.image_url
+    brand = body.brand
+
+    if not product_name and body.barcode:
+        existing = await db.execute(
+            select(PriceModel).where(
+                PriceModel.barcode == body.barcode,
+                PriceModel.product_name != "",
+            ).limit(1)
+        )
+        prev = existing.scalar_one_or_none()
+        if prev:
+            product_name = prev.product_name
+            if not image_url:
+                image_url = prev.image_url
+            if not brand:
+                brand = prev.brand
+
     price = PriceModel(
-        product_name=body.product_name,
+        product_name=product_name,
         barcode=body.barcode,
         price=body.price,
         supermarket=body.supermarket,
-        brand=body.brand,
-        image_url=body.image_url,
+        brand=brand,
+        image_url=image_url,
         user_id=current_user.id,
         latitude=body.latitude,
         longitude=body.longitude,
