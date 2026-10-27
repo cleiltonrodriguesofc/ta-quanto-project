@@ -43,7 +43,7 @@ def test_refresh_token_is_valid():
     assert payload["sub"] == "user-123"
     assert payload["type"] == "refresh"
     assert isinstance(expires_at, datetime)
-    assert expires_at > datetime.now(timezone.utc)
+    assert expires_at > datetime.utcnow()
 
 
 def test_decode_invalid_token_returns_none():

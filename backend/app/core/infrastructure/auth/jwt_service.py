@@ -33,7 +33,10 @@ def create_refresh_token(user_id: str) -> tuple[str, datetime]:
         "jti": str(uuid.uuid4()),  # garante unicidade do token
     }
     token = jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
-    return token, expire
+    # asyncpg rejeita datetime timezone-aware em colunas TIMESTAMP WITHOUT TIME ZONE.
+    # Removemos o tzinfo para retornar um naive datetime em UTC.
+    expire_naive = expire.replace(tzinfo=None)
+    return token, expire_naive
 
 
 def decode_token(token: str) -> Optional[dict]:

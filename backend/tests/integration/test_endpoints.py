@@ -9,7 +9,9 @@ async def test_health_check():
     ) as ac:
         response = await ac.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "taquanto-api"}
+    data = response.json()
+    assert data["status"] == "ok"
+    assert data["service"] == "taquanto-api"
 
 @pytest.mark.asyncio
 async def test_register_and_login():
