@@ -55,13 +55,13 @@ export default function CommunityScreen() {
     let filtered = prices;
 
     // Filter by user (My Contributions)
-    if (filterBy === 'mine' && userProfile?.id) {
-      filtered = filtered.filter(price => price.userId === userProfile.id);
+    if (filterBy === 'mine') {
+      filtered = filtered.filter(price => !!userProfile?.id && price.userId === userProfile.id);
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
-      filtered = prices.filter(price =>
+      filtered = filtered.filter(price =>
         price.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         price.supermarket.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -69,7 +69,7 @@ export default function CommunityScreen() {
 
     // Sort by selected criteria
     if (sortBy === 'recent') {
-      filtered = filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      filtered = [...filtered].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     } else {
       filtered = filtered.sort((a, b) => a.price - b.price);
     }
