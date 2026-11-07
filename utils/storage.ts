@@ -91,37 +91,18 @@ export const syncLocalData = async (): Promise<{ success: boolean; message: stri
 // --- Main Storage API (Switched to Backend) ---
 
 export const getStoredPrices = async (): Promise<PriceEntry[]> => {
+  const localPrices = await getLocalPrices();
   try {
-    // 0. Always load local first for speed (Instant)
-    const localPrices = await getLocalPrices();
-
-    // 1. Refresh from API in background (Non-blocking)
-    const refresh = async () => {
-      const isConnected = await checkApiConnection();
-      if (isConnected) {
-        try {
-          const remotePrices = await api.getPrices();
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remotePrices));
-        } catch { }
-      }
-    };
-    refresh();
-
-    // 2. Return cache immediately if available
-    if (localPrices.length > 0) {
-      return localPrices;
-    }
-
-    // 3. Only await if cache is empty
     const isConnected = await checkApiConnection();
-    if (isConnected) {
-      return await api.getPrices();
-    }
+    if (!isConnected) return localPrices;
 
-    return [];
+    // Await the latest server response so callers do not render stale cached prices.
+    const remotePrices = await api.getPrices();
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(remotePrices));
+    return remotePrices;
   } catch (error) {
-    console.error('Error getting prices:', error);
-    return [];
+    console.warn('Unable to refresh prices; using cached data:', error);
+    return localPrices;
   }
 };
 
