@@ -45,4 +45,4 @@ Não implementei scraping dos resultados do Google: a política oficial proíbe 
 1. Criar o Cron Job no Render e acompanhar a primeira execução.
 2. Confirmar as categorias adequadas ao Brasil e avaliar bases abertas de higiene, beleza e pet com licença compatível.
 3. Expandir a atribuição da fonte nas outras telas que exibem dados de produto.
-4. Verificar/renovar os tokens Cosmos, UPCItemDB e Go-UPC antes de depender deles. O catálogo local continua servindo registros já importados ou contribuídos mesmo sem esses tokens.
+4. Verificar no Render os segredos COSMOS_API_TOKEN e GO_UPC_API_KEY. UPCItemDB usa atualmente a rota trial sem chave no código; confirmar se ainda responde e respeitar a cota. O catálogo continua servindo registros importados ou contribuídos mesmo quando essas integrações falham.
