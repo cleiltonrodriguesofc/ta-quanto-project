@@ -23,6 +23,11 @@ export const getPricesByBarcode = async (barcode: string): Promise<PriceEntry[]>
   return prices as unknown as PriceEntry[];
 };
 
+export const refreshPricesByBarcode = async (barcode: string): Promise<PriceEntry[]> => {
+  const prices = await getPricesByBarcodeUseCase.refresh(barcode);
+  return prices as unknown as PriceEntry[];
+};
+
 export async function storePrice(price: Partial<PriceEntry>): Promise<PriceEntry> {
   const added = await asyncStoragePriceRepository.add({
     barcode: price.barcode || '',

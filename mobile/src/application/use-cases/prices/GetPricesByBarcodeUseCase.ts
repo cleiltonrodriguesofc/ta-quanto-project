@@ -7,25 +7,22 @@ export class GetPricesByBarcodeUseCase {
     private localPriceRepo: IPriceRepository,
   ) {}
 
+  async refresh(barcode: string): Promise<Price[]> {
+    const prices = await this.remotePriceRepo.getAll(barcode);
+    if (prices.length > 0) {
+      void this.localPriceRepo.batchUpload(prices).catch(error => {
+        console.warn('[GetPricesByBarcodeUseCase] Cache update failed:', error);
+      });
+    }
+    return prices;
+  }
+
   async execute(barcode: string): Promise<Price[]> {
     const cachedPrices = await this.localPriceRepo.getAll(barcode);
-    if (cachedPrices.length > 0) {
-      // Use device data immediately; refresh shared cache without holding up UI.
-      void this.remotePriceRepo.getAll(barcode).then(remotePrices => {
-        if (remotePrices.length) {
-          return this.localPriceRepo.batchUpload(remotePrices);
-        }
-      }).catch(error => console.warn('[GetPricesByBarcodeUseCase] Background refresh failed:', error));
-      return cachedPrices;
-    }
-
-    try {
-      const remotePrices = await this.remotePriceRepo.getAll(barcode);
-      if (remotePrices.length > 0) return remotePrices;
-    } catch (error) {
+    const refresh = this.refresh(barcode).catch(error => {
       console.warn('[GetPricesByBarcodeUseCase] Remote error:', error);
-    }
-
-    return cachedPrices;
+      return cachedPrices;
+    });
+    return cachedPrices.length > 0 ? cachedPrices : refresh;
   }
 }

@@ -22,11 +22,11 @@ export class ApiPriceRepository implements IPriceRepository {
   }
 
   async getAll(barcode?: string): Promise<Price[]> {
+    if (barcode) {
+      const response = await apiClient.get<any[]>(`/api/v1/prices/barcode/${encodeURIComponent(barcode)}`);
+      return response.data.map(p => this.mapToPrice(p));
+    }
     try {
-      if (barcode) {
-        const response = await apiClient.get<any[]>(`/api/v1/prices/barcode/${encodeURIComponent(barcode)}`);
-        return response.data.map(p => this.mapToPrice(p));
-      }
       const response = await apiClient.get<any[]>('/api/v1/prices/', {
         params: { limit: 100 }
       });

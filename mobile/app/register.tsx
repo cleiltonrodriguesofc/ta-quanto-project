@@ -29,6 +29,7 @@ let globalLastLoggedBarcode: string | null = null;
 export default function RegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const fromProduct = params.fromProduct === 'true';
   const { t } = useTranslation();
   const { selectedSupermarket, setSelectedSupermarket, addToBasket } = useSupermarketSession();
   const hasInitialized = useRef(false);
@@ -142,7 +143,7 @@ export default function RegisterScreen() {
       const isFromBasket = params.fromBasket === 'true';
 
       if (isFromBasket) {
-        addToBasket({
+        await addToBasket({
           barcode,
           productName,
           price: priceValue,
@@ -161,6 +162,8 @@ export default function RegisterScreen() {
             if (isFromBasket) {
               // Pass fromBasket=true back to scan
               router.replace('/scan?fromBasket=true');
+            } else if (fromProduct) {
+              router.back();
             } else {
               router.replace(`/product/${barcode}`);
             }
@@ -188,7 +191,10 @@ export default function RegisterScreen() {
       style={styles.container}
     >
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace('/(tabs)/add')} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => fromProduct ? router.back() : router.replace('/(tabs)/add')}
+          style={styles.backButton}
+        >
           <ArrowLeft size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.title}>{t('register_price')}</Text>

@@ -25,15 +25,16 @@ export class AsyncStoragePriceRepository implements IPriceRepository {
     return prices.filter(p => p.userId === userId);
   }
 
-  async add(price: NewPrice): Promise<Price> {
-    const prices = await this.getAll();
-    const id = (price as any).id || `price_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    const fullPrice: Price = { ...price, id };
-    const updated = [fullPrice, ...prices];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    const pendingIds = await this.getPendingIds();
-    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify([...new Set([...pendingIds, id])]));
-    return fullPrice;
+  add(price: NewPrice): Promise<Price> {
+    return this.write(async () => {
+      const prices = await this.getAll();
+      const id = this.getId(price);
+      const fullPrice: Price = { ...price, id };
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([fullPrice, ...prices]));
+      const pendingIds = await this.getPendingIds();
+      await AsyncStorage.setItem(PENDING_KEY, JSON.stringify([...new Set([...pendingIds, id])]));
+      return fullPrice;
+    });
   }
 
   async getPending(): Promise<Price[]> {
@@ -42,26 +43,44 @@ export class AsyncStoragePriceRepository implements IPriceRepository {
     return prices.filter(price => pending.has(price.id));
   }
 
-  async markSynced(ids: string[]): Promise<void> {
-    if (!ids.length) return;
-    const synced = new Set(ids);
-    const pendingIds = await this.getPendingIds();
-    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pendingIds.filter(id => !synced.has(id))));
+  markSynced(ids: string[]): Promise<void> {
+    return this.write(async () => {
+      const synced = new Set(ids);
+      const pendingIds = await this.getPendingIds();
+      await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pendingIds.filter(id => !synced.has(id))));
+    });
   }
 
-  async batchUpload(prices: NewPrice[]): Promise<void> {
-    const existing = await this.getAll();
-    const formatted = prices.map(p => ({
-      ...p,
-      id: (p as any).id || `price_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    }));
-    const updated = [...formatted, ...existing];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  batchUpload(prices: NewPrice[]): Promise<void> {
+    return this.write(async () => {
+      const existing = await this.getAll();
+      const byId = new Map(existing.map(price => [price.id, price]));
+      for (const price of prices) {
+        const id = this.getId(price);
+        byId.set(id, { ...price, id });
+      }
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify([...byId.values()]));
+    });
   }
 
-  async clear(): Promise<void> {
-    await AsyncStorage.removeItem(STORAGE_KEY);
-    await AsyncStorage.removeItem(PENDING_KEY);
+  clear(): Promise<void> {
+    return this.write(async () => {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+      await AsyncStorage.removeItem(PENDING_KEY);
+    });
+  }
+
+  private pendingWrite: Promise<unknown> = Promise.resolve();
+
+  private write<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.pendingWrite.then(operation);
+    this.pendingWrite = result.catch(() => undefined);
+    return result;
+  }
+
+  private getId(price: NewPrice): string {
+    return ('id' in price && typeof price.id === 'string' && price.id)
+      || `price_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   }
 
   private async getPendingIds(): Promise<string[]> {

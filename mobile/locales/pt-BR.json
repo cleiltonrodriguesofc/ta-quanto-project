@@ -78,6 +78,7 @@
     "no": "Não",
     "yes": "Sim",
     "supermarket_prices": "Preços nos Supermercados",
+    "prices_unavailable": "Não foi possível atualizar os preços agora.",
     "no_prices_recorded": "Nenhum preço registrado ainda.",
     "price_confirmed": "Preço confirmado!",
     "confirm_error": "Falha ao confirmar preço",

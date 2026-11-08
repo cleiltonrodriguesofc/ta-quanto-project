@@ -1,144 +1,48 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   Dimensions,
-  ActivityIndicator,
-  Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useFocusEffect, useLocalSearchParams, useIsFocused } from 'expo-router';
-import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
-import { PriceEntry } from '@/types/price';
-import { getCachedProductByBarcode, getLocalPrices, getProductByBarcode } from '@/utils/storage';
+import { ArrowLeft, Flashlight } from 'lucide-react-native';
 import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
 import { useTranslation } from 'react-i18next';
-import { useSupermarketSession } from '@/context/SupermarketContext';
 
 const { width } = Dimensions.get('window');
 const SCAN_SIZE = width * 0.7;
-
-type ScanStatus = 'idle' | 'searching' | 'found' | 'checking_price' | 'price_not_found' | 'success';
 
 export default function ScanScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
-  const { selectedSupermarket } = useSupermarketSession();
-  const params = useLocalSearchParams();
-  const fromBasket = params.fromBasket as string;
+  const { fromBasket } = useLocalSearchParams<{ fromBasket?: string }>();
   const isFocused = useIsFocused();
 
   const [scanned, setScanned] = useState(false);
   const [flash, setFlash] = useState(false);
-  const [status, setStatus] = useState<ScanStatus>('idle');
-  const [statusMessage, setStatusMessage] = useState('');
-  const [fadeAnim] = useState(new Animated.Value(0));
+  const scanHandled = useRef(false);
 
-  // Reset state when screen focus is regained
   useFocusEffect(
     useCallback(() => {
-      setStatus('idle');
+      scanHandled.current = false;
       setScanned(false);
-      setStatusMessage('');
     }, [])
   );
 
-  useEffect(() => {
-    if (status !== 'idle') {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [status, fadeAnim]);
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    const barcode = data.trim();
+    if (!isFocused || scanHandled.current || !barcode) return;
 
-  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    if (scanned) return;
+    scanHandled.current = true;
     setScanned(true);
-    console.log(`[Scan] Barcode detected: ${data} (Type: ${type})`);
-
-    try {
-      // Resolve from on-device cache only. A barcode scan must never wait for
-      // Render or a public product provider before opening the next screen.
-      const [cachedProduct, cachedPrices] = await Promise.all([
-        getCachedProductByBarcode(data),
-        getLocalPrices(data),
-      ]);
-      const localPrice = cachedPrices.find((item: PriceEntry) => item.supermarket === selectedSupermarket)
-        || cachedPrices[0];
-      const productName = cachedProduct?.name || localPrice?.productName;
-      const imageUrl = cachedProduct?.imageUrl || localPrice?.imageUrl;
-      const brand = cachedProduct?.brand || localPrice?.brand;
-
-      // Enrich this device's catalog after navigation; do not block the scan.
-      if (!cachedProduct) {
-        void getProductByBarcode(data).catch(error => {
-          console.warn('[Scan] Background product lookup failed:', error);
-        });
-      }
-
-      if (
-        (selectedSupermarket && localPrice?.supermarket === selectedSupermarket)
-        || cachedProduct
-        || cachedPrices.length > 0
-      ) {
-        // The details screen loads shared backend prices when the device has
-        // no local match, while the camera itself stays responsive.
-        router.push(`/product/${data}?fromBasket=${fromBasket || ''}`);
-      } else {
-        router.push({
-          pathname: '/register',
-          params: {
-            barcode: data,
-            productName,
-            imageUrl,
-            brand,
-            fromBasket: fromBasket || '',
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error processing barcode:', error);
-      Alert.alert(t('error'), t('error'));
-      setScanned(false);
-      setStatus('idle');
-    }
-  };
-
-  const renderStatusOverlay = () => {
-    if (status === 'idle') return null;
-
-    let icon = <ActivityIndicator size="large" color="#FFFFFF" />;
-    let color = 'rgba(0,0,0,0.8)';
-
-    if (status === 'found') {
-      icon = <CheckCircle2 size={48} color="#10B981" />;
-      color = 'rgba(16, 185, 129, 0.9)';
-    } else if (status === 'price_not_found') {
-      icon = <AlertCircle size={48} color="#F59E0B" />;
-      color = 'rgba(245, 158, 11, 0.9)';
-    } else if (status === 'searching') {
-      icon = <Search size={48} color="#3A7DE8" />;
-      color = 'rgba(58, 125, 232, 0.9)';
-    }
-
-    return (
-      <Animated.View style={[styles.statusOverlay, { opacity: fadeAnim, backgroundColor: color }]}>
-        {icon}
-        <Text style={styles.statusText}>{statusMessage}</Text>
-      </Animated.View>
-    );
+    router.push({
+      pathname: '/product/[barcode]',
+      params: { barcode, fromBasket },
+    });
   };
 
   if (!permission) return <View style={styles.container} />;
@@ -170,8 +74,6 @@ export default function ScanScreen() {
           }}
         />
       )}
-
-      {renderStatusOverlay()}
 
       <View style={styles.overlay}>
         <View style={styles.header}>
@@ -316,18 +218,5 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  statusOverlay: {
-    ...StyleSheet.absoluteFill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  statusText: {
-    marginTop: 20,
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    textAlign: 'center',
   },
 });

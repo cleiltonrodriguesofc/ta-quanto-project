@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -9,11 +9,12 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Plus, MapPin, Clock, TrendingDown, TrendingUp, Check, X } from 'lucide-react-native';
 import { useKeepAwake } from 'expo-keep-awake';
-import { getPricesByBarcode, savePriceEntry } from '@/utils/storage';
+import { getLocalPrices, getProductByBarcode, refreshPricesByBarcode, savePriceEntry } from '@/utils/storage';
 import { PriceEntry } from '@/types/price';
+import { Product } from '@/src/domain/entities';
 import { formatTimeAgo } from '@/utils/date';
 import { formatLocationDisplay } from '@/utils/location';
 import { useSupermarketSession } from '@/context/SupermarketContext';
@@ -30,76 +31,75 @@ export default function ProductDetailsScreen() {
     const router = useRouter();
     const { t } = useTranslation();
 
-    const [productInfo, setProductInfo] = useState<PriceEntry | null>(null);
-    const [latestPrices, setLatestPrices] = useState<PriceEntry[]>([]);
-    const [stats, setStats] = useState<{ min: number; avg: number; minSupermarket: string } | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [selectedSupermarket, setSelectedSupermarket] = useState<string | null>(null);
-    const [currentSupermarketPrice, setCurrentSupermarketPrice] = useState<PriceEntry | null>(null);
-    const { addToBasket } = useSupermarketSession();
+    const [prices, setPrices] = useState<PriceEntry[]>([]);
+    const [catalogProduct, setCatalogProduct] = useState<Product | null>(null);
+    const [priceStatus, setPriceStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+    const [selectedPriceStore, setSelectedPriceStore] = useState<string | null>(null);
+    const { selectedSupermarket: currentStore, addToBasket } = useSupermarketSession();
 
-    const loadPrices = useCallback(async () => {
-        try {
-            setLoading(true);
-            const prices = await getPricesByBarcode(barcode);
+    useFocusEffect(useCallback(() => {
+        let active = true;
+        void (async () => {
+            try {
+                const cachedPrices = await getLocalPrices(barcode);
+                if (!active) return;
+                setPrices(cachedPrices);
+                setPriceStatus('loading');
 
-            if (prices.length > 0) {
-                // Group by supermarket and take the latest price for each
-                const latestBySupermarket = prices.reduce((acc, curr) => {
-                    if (!acc[curr.supermarket] || new Date(curr.timestamp) > new Date(acc[curr.supermarket].timestamp)) {
-                        acc[curr.supermarket] = curr;
-                    }
-                    return acc;
-                }, {} as Record<string, PriceEntry>);
-
-                const uniquePrices = Object.values(latestBySupermarket);
-                setLatestPrices(uniquePrices);
-
-                // Calculate stats
-                const pricesList = uniquePrices.map(p => p.price);
-                const min = Math.min(...pricesList);
-                const avg = pricesList.reduce((a, b) => a + b, 0) / pricesList.length;
-                const minSupermarket = uniquePrices.find(p => p.price === min)?.supermarket || '';
-
-                setStats({ min, avg, minSupermarket });
-
-                // Set product info from the most recent entry
-                const mostRecent = prices.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-                setProductInfo(mostRecent);
-            } else {
-                setLatestPrices([]);
-                setStats(null);
+                const sharedPrices = await refreshPricesByBarcode(barcode);
+                if (!active) return;
+                setPrices(current => [...new Map(
+                    [...current, ...sharedPrices].map(price => [price.id, price])
+                ).values()]);
+                setPriceStatus('ready');
+            } catch (error) {
+                if (!active) return;
+                console.warn('[Product Detail] Failed to load prices:', error);
+                setPriceStatus('error');
             }
-        } catch (error) {
-            console.error('Error loading prices:', error);
-            Alert.alert(t('error'), t('load_error'));
-        } finally {
-            setLoading(false);
-        }
-    }, [barcode, t]);
+        })();
+        return () => { active = false; };
+    }, [barcode]));
 
     useEffect(() => {
-        loadPrices();
-    }, [loadPrices]);
+        let active = true;
+        void getProductByBarcode(barcode).then(product => {
+            if (active) setCatalogProduct(product);
+        }).catch(error => console.warn('[Product Detail] Product lookup failed:', error));
+        return () => { active = false; };
+    }, [barcode]);
 
-    // Check if the current selected supermarket has a price entry
-    useEffect(() => {
-        if (selectedSupermarket && latestPrices.length > 0) {
-            const price = latestPrices.find(p => p.supermarket === selectedSupermarket);
-            setCurrentSupermarketPrice(price || null);
-        } else {
-            setCurrentSupermarketPrice(null);
+    const { latestPrices, mostRecent, stats } = useMemo(() => {
+        const byStore = new Map<string, PriceEntry>();
+        let mostRecent: PriceEntry | undefined;
+        for (const price of prices) {
+            const previous = byStore.get(price.supermarket);
+            if (!previous || Date.parse(price.timestamp) > Date.parse(previous.timestamp)) {
+                byStore.set(price.supermarket, price);
+            }
+            if (!mostRecent || Date.parse(price.timestamp) > Date.parse(mostRecent.timestamp)) {
+                mostRecent = price;
+            }
         }
-    }, [selectedSupermarket, latestPrices]);
+        const latestPrices = [...byStore.values()].sort((a, b) => a.price - b.price);
+        const best = latestPrices[0];
+        const stats = best ? {
+            min: best.price,
+            avg: latestPrices.reduce((total, price) => total + price.price, 0) / latestPrices.length,
+            minSupermarket: best.supermarket,
+        } : null;
+        return { latestPrices, mostRecent, stats };
+    }, [prices]);
 
-    // Set initial selected supermarket to the one with the best price or the first one
-    useEffect(() => {
-        if (stats?.minSupermarket && !selectedSupermarket) {
-            setSelectedSupermarket(stats.minSupermarket);
-        } else if (latestPrices.length > 0 && !selectedSupermarket) {
-            setSelectedSupermarket(latestPrices[0].supermarket);
-        }
-    }, [stats, latestPrices, selectedSupermarket]);
+    const productInfo = {
+        productName: mostRecent?.productName || catalogProduct?.name,
+        brand: mostRecent?.brand || catalogProduct?.brand,
+        imageUrl: mostRecent?.imageUrl || catalogProduct?.imageUrl,
+    };
+    const selectedSupermarket = selectedPriceStore ?? currentStore ?? stats?.minSupermarket;
+    const currentSupermarketPrice = latestPrices.find(price =>
+        price.supermarket === (currentStore ?? selectedSupermarket)
+    );
 
     const isUpdatedToday = currentSupermarketPrice && new Date(currentSupermarketPrice.timestamp).toDateString() === new Date().toDateString();
 
@@ -111,19 +111,21 @@ export default function ProductDetailsScreen() {
         if (!currentSupermarketPrice) return;
 
         try {
-            await savePriceEntry({
+            const confirmed = await savePriceEntry({
                 ...currentSupermarketPrice,
                 timestamp: new Date().toISOString(),
             });
 
+            setPrices(current => [confirmed, ...current]);
+
             if (isFromBasket) {
-                addToBasket({
+                await addToBasket({
                     barcode,
-                    productName: productInfo?.productName || t('unknown_product'),
+                    productName: productInfo.productName || t('unknown_product'),
                     price: currentSupermarketPrice.price,
                     quantity: 1,
                     supermarket: currentSupermarketPrice.supermarket,
-                    imageUrl: productInfo?.imageUrl,
+                    imageUrl: productInfo.imageUrl,
                     timestamp: new Date().toISOString(),
                 });
             }
@@ -136,8 +138,6 @@ export default function ProductDetailsScreen() {
                         if (isFromBasket) {
                             // Pass fromBasket=true back to scan
                             router.replace('/scan?fromBasket=true');
-                        } else {
-                            loadPrices(); // Refresh list
                         }
                     }
                 },
@@ -164,15 +164,14 @@ export default function ProductDetailsScreen() {
             pathname: '/register',
             params: {
                 barcode,
-                productName: productInfo?.productName,
-                imageUrl: productInfo?.imageUrl,
-                brand: productInfo?.brand,
+                productName: productInfo.productName,
+                imageUrl: productInfo.imageUrl,
+                brand: productInfo.brand,
+                productSource: catalogProduct?.source,
+                fromBasket,
+                fromProduct: 'true',
             },
         });
-    };
-
-    const handleAddPrice = () => {
-        handleUpdatePrice();
     };
 
     const renderPriceItem = ({ item }: { item: PriceEntry }) => {
@@ -186,7 +185,7 @@ export default function ProductDetailsScreen() {
                     isSelected && styles.priceCardSelected,
                     isBestPrice && styles.priceCardBest
                 ]}
-                onPress={() => setSelectedSupermarket(item.supermarket)}
+                onPress={() => setSelectedPriceStore(item.supermarket)}
                 activeOpacity={0.7}
             >
                 <View style={styles.priceHeader}>
@@ -224,14 +223,6 @@ export default function ProductDetailsScreen() {
         );
     };
 
-    if (loading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#3A7DE8" />
-            </View>
-        );
-    }
-
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -249,22 +240,22 @@ export default function ProductDetailsScreen() {
                 contentContainerStyle={styles.listContent}
                 ListHeaderComponent={
                     <>
-                        {selectedSupermarket && (
+                        {currentStore && (
                             <View style={styles.supermarketBadge}>
                                 <MapPin size={24} color="#FFFFFF" />
-                                <Text style={styles.supermarketBadgeText}>{selectedSupermarket}</Text>
+                                <Text style={styles.supermarketBadgeText}>{currentStore}</Text>
                             </View>
                         )}
 
                         <View style={styles.productCard}>
-                            {productInfo?.imageUrl ? (
+                            {productInfo.imageUrl ? (
                                 <Image source={{ uri: productInfo.imageUrl }} style={styles.productImage} />
                             ) : (
                                 <View style={styles.placeholderImage} />
                             )}
                             <View style={styles.productInfo}>
-                                <Text style={styles.productName}>{productInfo?.productName || t('unknown_product')}</Text>
-                                {productInfo?.brand && (
+                                <Text style={styles.productName}>{productInfo.productName || t('unknown_product')}</Text>
+                                {productInfo.brand && (
                                     <Text style={styles.productBrand}>{productInfo.brand}</Text>
                                 )}
                                 <Text style={styles.barcode}>{barcode}</Text>
@@ -324,16 +315,28 @@ export default function ProductDetailsScreen() {
                         )}
 
                         <Text style={styles.sectionTitle}>{t('supermarket_prices')}</Text>
+                        {currentStore && !currentSupermarketPrice && priceStatus === 'ready' && (
+                            <Text style={styles.emptyText}>{t('price_not_found_supermarket')}</Text>
+                        )}
+                        {latestPrices.length > 0 && priceStatus === 'error' && (
+                            <Text style={styles.emptyText}>{t('prices_unavailable')}</Text>
+                        )}
                     </>
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>{t('no_prices_recorded')}</Text>
+                        {priceStatus === 'loading' ? (
+                            <ActivityIndicator color="#3A7DE8" />
+                        ) : (
+                            <Text style={styles.emptyText}>
+                                {t(priceStatus === 'error' ? 'prices_unavailable' : 'no_prices_recorded')}
+                            </Text>
+                        )}
                     </View>
                 }
             />
 
-            <TouchableOpacity style={styles.fab} onPress={handleAddPrice}>
+            <TouchableOpacity style={styles.fab} onPress={handleUpdatePrice} accessibilityLabel={t('add_price')}>
                 <Plus size={24} color="#FFFFFF" />
             </TouchableOpacity>
         </View>
@@ -344,11 +347,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     header: {
         paddingTop: 60,
