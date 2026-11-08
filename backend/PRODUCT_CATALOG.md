@@ -10,25 +10,30 @@ Priorizar leituras no cache local e no catálogo central do TaQuanto?, usando fo
 - Todo preço com nome e código de barras semeia/atualiza o catálogo central.
 - Consulta por código de barras verifica o catálogo e preços comunitários antes de Open Food Facts e Cosmos. Respostas externas encontradas são guardadas.
 - O app verifica o AsyncStorage primeiro, baixa em segundo plano até 200 produtos mais consultados e grava resultados novos para leituras seguintes.
-- Importador agendável percorre páginas por categoria, pausa entre chamadas e salva a página atual no banco para continuar na próxima execução.
+- O FastAPI inicia uma tarefa assíncrona no próprio processo e roda a importação automaticamente, com intervalo configurável. O progresso de cada categoria fica salvo no banco para retomar depois de reinícios.
 - A tela de cadastro mostra a atribuição para registros de Open Food Facts.
 
-## Importação agendada
+## Agendador integrado ao FastAPI
 
-O código está em `backend/scripts/sync_product_catalog.py`. A configuração inicial usa cinco categorias alimentares e importa até 50 itens por categoria em cada execução (até 250 itens por ciclo). O volume é configurável:
+O FastAPI inicia a rotina de importação no startup; não é preciso criar um Cron Job ou outro serviço no Render. A primeira execução começa após 60 segundos por padrão e se repete a cada 24 horas. Cada ciclo consulta as categorias configuradas, com pausa entre requisições. A posição de cada categoria permanece no banco, então a importação continua após reinício do processo.
 
+Variáveis configuráveis:
+
+- `PRODUCT_CATALOG_SYNC_ENABLED`: ativa/desativa a tarefa (padrão `true`).
+- `PRODUCT_CATALOG_SYNC_INTERVAL_SECONDS`: intervalo entre ciclos (padrão `86400`).
+- `PRODUCT_CATALOG_SYNC_START_DELAY_SECONDS`: atraso após o startup (padrão `60`).
 - `PRODUCT_CATALOG_CATEGORIES`: tags separadas por vírgula.
 - `PRODUCT_CATALOG_PAGES_PER_RUN`: páginas por categoria (padrão 1).
 - `PRODUCT_CATALOG_REQUEST_INTERVAL_SECONDS`: pausa entre chamadas (padrão 6 segundos).
-- `TAQUANTO_CONTACT_URL`: URL identificadora no User-Agent.
+- `TAQUANTO_CONTACT_URL`: URL identificadora no User-Agent da Open Food Facts.
 
-Comando, a partir da pasta `backend`:
+A rotina também pode ser executada manualmente a partir da pasta `backend`:
 
 ```sh
 python -m scripts.sync_product_catalog
 ```
 
-No Render, cria um **Cron Job** separado apontando para o mesmo repositório, diretório raiz `backend`, as mesmas variáveis do backend e o comando acima. Recomendo uma execução diária para começar; a posição de cada categoria fica no banco. Cron Jobs usam compute próprio e não estão disponíveis no plano gratuito. O código está no repositório, mas a criação do serviço no Render exige configuração no painel e pode gerar custo; não alterei o serviço hospedado.
+O Render gratuito suspende um web service após 15 minutos sem tráfego de entrada. Os pings frequentes do monitor de uptime contam como tráfego, então, enquanto eles continuarem chegando, o processo e o agendador permanecem ativos. Se houver suspensão ou reinício, tarefas em memória param; o ciclo volta no próximo startup e o progresso já salvo no banco é retomado. https://render.com/docs/free
 
 ## Fontes, qualidade e licença
 

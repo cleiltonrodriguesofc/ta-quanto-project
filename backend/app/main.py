@@ -7,6 +7,9 @@ from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
+from app.config import settings
+from scripts.sync_product_catalog import sync_product_catalog_once
+
 from app.core.presentation.routers import auth, prices, products, users, supermarkets, basket
 from app.core.infrastructure.database.session import engine, AsyncSessionLocal
 from app.core.infrastructure.database.models import Base, SupermarketModel
@@ -31,6 +34,7 @@ _DB_LAST_PING_TS: float = 0.0
 _DB_PING_CACHE_TTL: float = 24 * 60 * 60  # 24 horas
 
 _heartbeat_task: asyncio.Task | None = None
+_product_catalog_task: asyncio.Task | None = None
 
 
 async def _ping_db_real() -> None:
@@ -65,6 +69,24 @@ async def _db_heartbeat_loop() -> None:
             logger.warning("[DB Heartbeat] falha no ping: %s", exc)
 
 
+async def _product_catalog_sync_loop() -> None:
+    """Periodically enrich the shared catalog while the FastAPI process is running."""
+    await asyncio.sleep(max(0, settings.product_catalog_sync_start_delay_seconds))
+    interval = max(60, settings.product_catalog_sync_interval_seconds)
+    while True:
+        try:
+            logger.info("[Product Catalog] scheduled sync starting")
+            imported = await sync_product_catalog_once()
+            logger.info("[Product Catalog] scheduled sync finished; processed=%s", imported)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logging.getLogger("taquanto.catalog_scheduler").exception(
+                "[Product Catalog] sync failed; retrying on the next cycle"
+            )
+        await asyncio.sleep(interval)
+
+
 app = FastAPI(
     title="TaQuanto? API",
     description="Backend da plataforma TaQuanto? — comparação de preços de supermercado.",
@@ -94,7 +116,7 @@ app.include_router(basket.router)
 @app.on_event("startup")
 async def on_startup() -> None:
     """Cria as tabelas e inicia o heartbeat do banco."""
-    global _heartbeat_task
+    global _heartbeat_task, _product_catalog_task
 
     # Garante que o schema existe
     async with engine.begin() as conn:
@@ -109,17 +131,35 @@ async def on_startup() -> None:
         "[DB Heartbeat] iniciado — intervalo: %ds", _DB_HEARTBEAT_INTERVAL_SECONDS
     )
 
+    if settings.product_catalog_sync_enabled:
+        _product_catalog_task = asyncio.create_task(
+            _product_catalog_sync_loop(),
+            name="product-catalog-sync",
+        )
+        logger.info(
+            "[Product Catalog] scheduler started; first run in %ds, interval %ds",
+            max(0, settings.product_catalog_sync_start_delay_seconds),
+            max(60, settings.product_catalog_sync_interval_seconds),
+        )
+
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:
     """Cancela o heartbeat limpo ao encerrar o servidor."""
-    global _heartbeat_task
+    global _heartbeat_task, _product_catalog_task
     if _heartbeat_task and not _heartbeat_task.done():
         _heartbeat_task.cancel()
         try:
             await _heartbeat_task
         except asyncio.CancelledError:
             pass
+    if _product_catalog_task and not _product_catalog_task.done():
+        _product_catalog_task.cancel()
+        try:
+            await _product_catalog_task
+        except asyncio.CancelledError:
+            pass
+    logger.info("[Product Catalog] scheduler stopped.")
     logger.info("[DB Heartbeat] encerrado.")
 
 

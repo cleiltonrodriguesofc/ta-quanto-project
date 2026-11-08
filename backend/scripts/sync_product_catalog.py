@@ -99,7 +99,7 @@ async def import_category(client: httpx.AsyncClient, category: str) -> int:
     return imported
 
 
-async def main() -> None:
+async def sync_product_catalog_once() -> int:
     raw_categories = os.getenv("PRODUCT_CATALOG_CATEGORIES", ",".join(DEFAULT_CATEGORIES))
     categories = [value.strip() for value in raw_categories.split(",") if value.strip()]
     contact = os.getenv("TAQUANTO_CONTACT_URL", "https://github.com/cleiltonrodriguesofc/ta-quanto-project")
@@ -111,6 +111,11 @@ async def main() -> None:
             if index < len(categories) - 1:
                 await asyncio.sleep(REQUEST_INTERVAL_SECONDS)
     logger.info("catalog import completed; rows processed=%s categories=%s", total, len(categories))
+    return total
+
+
+async def main() -> None:
+    await sync_product_catalog_once()
 
 
 if __name__ == "__main__":
