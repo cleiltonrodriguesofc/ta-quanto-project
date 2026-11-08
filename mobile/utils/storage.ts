@@ -6,9 +6,12 @@ import {
   asyncStorageSupermarketRepository,
   asyncStorageBasketRepository,
 } from '@/src/infrastructure/storage';
-import { getPricesByBarcodeUseCase, lookupProductUseCase } from '@/src/application';
+import { getPricesByBarcodeUseCase, lookupProductUseCase, registerPriceUseCase } from '@/src/application';
 import { Supermarket, Product } from '@/src/domain/entities';
+import { apiClient } from '@/src/infrastructure/api/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const PRODUCT_CACHE_KEY = 'taquanto_products';
 
 export async function getStoredPrices(barcode?: string): Promise<PriceEntry[]> {
   const prices = await asyncStoragePriceRepository.getAll(barcode);
@@ -21,7 +24,7 @@ export const getPricesByBarcode = async (barcode: string): Promise<PriceEntry[]>
 };
 
 export async function storePrice(price: Partial<PriceEntry>): Promise<PriceEntry> {
-  const added = await asyncStoragePriceRepository.add({
+  const added = await registerPriceUseCase.execute({
     barcode: price.barcode || '',
     productName: price.productName || '',
     price: price.price || 0,
@@ -42,14 +45,9 @@ export async function getStoredProfile(userId?: string): Promise<UserProfile | n
   const user = await asyncStorageUserRepository.getById(userId || '');
   if (!user) return null;
   return {
-    id: user.id,
-    displayName: user.displayName,
-    avatarId: user.avatarId,
-    joinedDate: user.joinedDate,
-    stats: user.stats,
-    level: user.level,
-    points: user.points,
-    settings: user.settings,
+    id: user.id, displayName: user.displayName, avatarId: user.avatarId,
+    joinedDate: user.joinedDate, stats: user.stats, level: user.level,
+    points: user.points, settings: user.settings,
   } as unknown as UserProfile;
 }
 export const getLocalProfile = getStoredProfile;
@@ -57,14 +55,9 @@ export const getUserProfile = getStoredProfile;
 
 export async function storeProfile(profile: UserProfile): Promise<void> {
   await asyncStorageUserRepository.save({
-    id: profile.id,
-    displayName: profile.displayName,
-    avatarId: profile.avatarId,
-    joinedDate: profile.joinedDate,
-    stats: profile.stats,
-    level: profile.level,
-    points: profile.points,
-    settings: profile.settings,
+    id: profile.id, displayName: profile.displayName, avatarId: profile.avatarId,
+    joinedDate: profile.joinedDate, stats: profile.stats, level: profile.level,
+    points: profile.points, settings: profile.settings,
   });
 }
 export const saveLocalProfile = storeProfile;
@@ -83,16 +76,52 @@ export const saveLocalSupermarkets = async (markets: Supermarket[]) => {
 };
 
 export const getLocalProducts = async (): Promise<Product[]> => {
-  const stored = await AsyncStorage.getItem('taquanto_products');
+  const stored = await AsyncStorage.getItem(PRODUCT_CACHE_KEY);
   return stored ? JSON.parse(stored) : [];
 };
 
 export const saveLocalProducts = async (products: Product[]): Promise<void> => {
-  await AsyncStorage.setItem('taquanto_products', JSON.stringify(products));
+  await AsyncStorage.setItem(PRODUCT_CACHE_KEY, JSON.stringify(products));
 };
 
+export async function syncProductCatalogToDevice(): Promise<number> {
+  const response = await apiClient.get<any[]>('/api/v1/products/catalog', {
+    params: { limit: 200 },
+  });
+  const incoming: Product[] = response.data.map((item: any) => ({
+    barcode: String(item.barcode),
+    name: item.name,
+    brand: item.brand || undefined,
+    imageUrl: item.image_url || undefined,
+    avgPrice: item.avg_price ?? undefined,
+    createdAt: item.updated_at || new Date().toISOString(),
+    source: item.source || undefined,
+    sourceLicense: item.source_license || undefined,
+  }));
+  const current = await getLocalProducts();
+  const byBarcode = new Map(current.map(product => [product.barcode, product]));
+  for (const product of incoming) {
+    const previous = byBarcode.get(product.barcode);
+    byBarcode.set(product.barcode, {
+      ...previous,
+      ...product,
+      brand: product.brand || previous?.brand,
+      imageUrl: product.imageUrl || previous?.imageUrl,
+    });
+  }
+  await saveLocalProducts(Array.from(byBarcode.values()));
+  return incoming.length;
+}
+
 export const getProductByBarcode = async (barcode: string): Promise<Product | null> => {
-  return lookupProductUseCase.execute(barcode);
+  const local = await getLocalProducts();
+  const cached = local.find(product => product.barcode === barcode);
+  if (cached) return cached;
+
+  const product = await lookupProductUseCase.execute(barcode);
+  if (!product) return null;
+  await saveLocalProducts([...local.filter(item => item.barcode !== barcode), product]);
+  return product;
 };
 
 export async function getStoredBasket(): Promise<any[]> {

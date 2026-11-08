@@ -24,10 +24,10 @@ export class ApiPriceRepository implements IPriceRepository {
   async getAll(barcode?: string): Promise<Price[]> {
     try {
       if (barcode) {
-        const response = await apiClient.get<any[]>(`/api/v1/prices/barcode/${barcode}`);
+        const response = await apiClient.get<any[]>(`/api/v1/prices/barcode/${encodeURIComponent(barcode)}`);
         return response.data.map(p => this.mapToPrice(p));
       }
-      const response = await apiClient.get<any[]>('/api/v1/prices', {
+      const response = await apiClient.get<any[]>('/api/v1/prices/', {
         params: { limit: 100 }
       });
       return response.data.map(p => this.mapToPrice(p));
@@ -39,7 +39,7 @@ export class ApiPriceRepository implements IPriceRepository {
 
   async getByUser(userId: string): Promise<Price[]> {
     try {
-      const response = await apiClient.get<any[]>(`/api/v1/prices/user/${userId}`);
+      const response = await apiClient.get<any[]>(`/api/v1/prices/user/${encodeURIComponent(userId)}`);
       return response.data.map(p => this.mapToPrice(p));
     } catch (error) {
       console.error(`Erro ao buscar preços para o usuário ${userId}`, error);
@@ -49,15 +49,13 @@ export class ApiPriceRepository implements IPriceRepository {
 
   async add(price: NewPrice): Promise<Price> {
     try {
-      const productName = price.productName || (price as any).product_name || (price as any).name || '';
-      const imageUrl = price.imageUrl || (price as any).image_url;
       const response = await apiClient.post<any>('/api/v1/prices/', {
-        product_name: productName,
+        product_name: price.productName || '',
         barcode: price.barcode,
         price: price.price,
         supermarket: price.supermarket,
         brand: price.brand,
-        image_url: imageUrl,
+        image_url: price.imageUrl,
         latitude: price.location?.latitude,
         longitude: price.location?.longitude,
       });
@@ -77,12 +75,8 @@ export class ApiPriceRepository implements IPriceRepository {
         failed.push(p);
       }
     }
-    
     if (failed.length === prices.length && prices.length > 0) {
       throw new Error('Todas as tentativas de upload falharam. Possivelmente offline.');
     }
-    
-    // Ideally we should only clear the successful ones from local storage, 
-    // but for now, we just throw if EVERYTHING fails so we don't wipe the queue.
   }
 }

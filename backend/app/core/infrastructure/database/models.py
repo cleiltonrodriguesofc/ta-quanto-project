@@ -61,6 +61,29 @@ class SupermarketModel(Base):
     prices: Mapped[list["PriceModel"]] = relationship(back_populates="supermarket_ref")
 
 
+class ProductModel(Base):
+    __tablename__ = "products"
+
+    barcode: Mapped[str] = mapped_column(String(100), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    brand: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    image_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    categories: Mapped[str] = mapped_column(Text, default="||")
+    source: Mapped[str] = mapped_column(String(80), default="community")
+    source_license: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    lookup_count: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
+
+
+class ProductCatalogSyncState(Base):
+    __tablename__ = "product_catalog_sync_state"
+
+    category: Mapped[str] = mapped_column(String(255), primary_key=True)
+    next_page: Mapped[int] = mapped_column(Integer, default=1)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class PriceModel(Base):
     __tablename__ = "prices"
 

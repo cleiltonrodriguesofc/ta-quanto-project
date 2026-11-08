@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.core.infrastructure.database.session import get_db
-from app.core.infrastructure.database.models import PriceModel, UserModel
+from app.core.infrastructure.database.models import PriceModel, ProductModel, UserModel
 from app.core.infrastructure.auth.dependencies import get_current_user
 
 router = APIRouter(prefix="/api/v1/prices", tags=["prices"])
@@ -84,10 +84,8 @@ async def register_price(
         prev = existing.scalar_one_or_none()
         if prev:
             product_name = prev.product_name
-            if not image_url:
-                image_url = prev.image_url
-            if not brand:
-                brand = prev.brand
+            image_url = image_url or prev.image_url
+            brand = brand or prev.brand
 
     price = PriceModel(
         product_name=product_name,
@@ -101,6 +99,25 @@ async def register_price(
         longitude=body.longitude,
     )
     db.add(price)
+
+    # Seed the shared product catalog from every valid community price report.
+    if body.barcode and product_name:
+        product_result = await db.execute(
+            select(ProductModel).where(ProductModel.barcode == body.barcode)
+        )
+        product = product_result.scalar_one_or_none()
+        if product is None:
+            db.add(ProductModel(
+                barcode=body.barcode,
+                name=product_name,
+                brand=brand,
+                image_url=image_url,
+                source="community",
+            ))
+        else:
+            product.name = product_name
+            product.brand = brand or product.brand
+            product.image_url = image_url or product.image_url
 
     # Gamification: incrementa contributions do usuário
     current_user.contributions += 1

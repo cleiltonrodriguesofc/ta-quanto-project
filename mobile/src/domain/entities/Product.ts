@@ -5,9 +5,11 @@ export interface Product {
   imageUrl?: string;
   /** Average market price from external APIs, if available */
   avgPrice?: number;
-  /** ISO date string of when this was first cached */
+  /** ISO date string of when this record was last updated */
   createdAt: string;
+  /** Original data provider, kept for attribution and provenance */
+  source?: string;
+  sourceLicense?: string;
 }
 
-/** Lightweight product reference used inside PriceEntry */
 export type ProductRef = Pick<Product, 'barcode' | 'name' | 'brand' | 'imageUrl'>;

@@ -5,7 +5,7 @@ import { apiClient } from './apiClient';
 export class ApiSupermarketRepository implements ISupermarketRepository {
   async getAll(): Promise<Supermarket[]> {
     try {
-      const response = await apiClient.get<Supermarket[]>('/api/v1/supermarkets');
+      const response = await apiClient.get<Supermarket[]>('/api/v1/supermarkets/');
       return response.data;
     } catch (error) {
       console.error('[ApiSupermarketRepository] Erro ao buscar supermercados:', error);
@@ -15,7 +15,7 @@ export class ApiSupermarketRepository implements ISupermarketRepository {
 
   async add(supermarket: NewSupermarket): Promise<Supermarket> {
     try {
-      const response = await apiClient.post<Supermarket>('/api/v1/supermarkets', supermarket);
+      const response = await apiClient.post<Supermarket>('/api/v1/supermarkets/', supermarket);
       return response.data;
     } catch (error) {
       console.error('[ApiSupermarketRepository] Erro ao adicionar supermercado:', error);
@@ -27,15 +27,12 @@ export class ApiSupermarketRepository implements ISupermarketRepository {
     try {
       const all = await this.getAll();
       if (all.length === 0) return null;
-
-      // Calcula distância Haversine e retorna o mais próximo
       const nearest = all.reduce<{ supermarket: Supermarket; dist: number } | null>((acc, s) => {
         if (!s.location) return acc;
         const dist = haversineDistance(lat, lon, s.location.latitude, s.location.longitude);
         if (!acc || dist < acc.dist) return { supermarket: s, dist };
         return acc;
       }, null);
-
       return nearest?.supermarket ?? null;
     } catch (error) {
       console.error('[ApiSupermarketRepository] Erro ao buscar supermercado mais próximo:', error);
@@ -44,7 +41,6 @@ export class ApiSupermarketRepository implements ISupermarketRepository {
   }
 }
 
-/** Distância em km entre dois pontos GPS (fórmula Haversine) */
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;

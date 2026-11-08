@@ -30,10 +30,8 @@ import {
   GetNearestSupermarketUseCase,
 } from './use-cases';
 
-// Auth: FastAPI JWT próprio (não muda)
 export const authUseCases = new AuthUseCases(apiAuthService);
 
-// Dados: FastAPI backend para preços e carrinhos salvos (evita erros RLS do Supabase)
 export const getCommunityPricesUseCase = new GetCommunityPricesUseCase(
   apiPriceRepository,
   asyncStoragePriceRepository,
@@ -67,10 +65,8 @@ export const saveUserProfileUseCase = new SaveUserProfileUseCase(
 
 export const uploadAvatarUseCase = new UploadAvatarUseCase(apiUserRepository);
 
-export const manageBasketUseCase = new ManageBasketUseCase(
-  asyncStorageBasketRepository,
-  apiSavedBasketRepository as any,
-);
+// Active shopping session stays on the device; saved baskets sync through their own repository.
+export const manageBasketUseCase = new ManageBasketUseCase(asyncStorageBasketRepository);
 
 export const manageSavedBasketUseCase = new ManageSavedBasketUseCase(
   apiSavedBasketRepository,

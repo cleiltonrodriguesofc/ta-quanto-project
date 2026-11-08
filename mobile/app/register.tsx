@@ -186,6 +186,12 @@ export default function RegisterScreen() {
             )}
           </View>
 
+          {typeof params.productSource === 'string' && params.productSource === 'openfoodfacts' && (
+            <Text style={styles.sourceAttribution}>
+              Product data: Open Food Facts (ODbL/DbCL). Product images: CC BY-SA.
+            </Text>
+          )}
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>{t('product_name')} *</Text>
             <TextInput
@@ -330,6 +336,12 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: 20,
+  },
+  sourceAttribution: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   label: {
     fontSize: 14,

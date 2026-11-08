@@ -14,7 +14,6 @@ import { useRouter, useFocusEffect, useLocalSearchParams, useIsFocused } from 'e
 import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
 import { PriceEntry } from '@/types/price';
 import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
-import { fetchProductFromOpenFoodFacts } from '@/utils/api';
 import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
 import { useTranslation } from 'react-i18next';
 import { useSupermarketSession } from '@/context/SupermarketContext';
@@ -84,36 +83,8 @@ export default function ScanScreen() {
       } as Partial<PriceEntry> : null;
       let productData: Partial<PriceEntry> | null = existingProduct;
 
-      // If product exists but has no image, try to fetch from API to enrich it
-      if (existingProduct && !existingProduct.imageUrl) {
-        console.log(`[Scan] Product ${existingProduct.productName} (local) has no image. Attempting enrichment...`);
-        const apiProduct = await fetchProductFromOpenFoodFacts(data);
-
-        if (apiProduct && apiProduct.imageUrl) {
-          console.log(`[Scan] Enrichment successful! Found image: ${apiProduct.imageUrl}`);
-          productData = {
-            ...existingProduct,
-            imageUrl: apiProduct.imageUrl
-          };
-        } else {
-          console.log('[Scan] Enrichment failed: No image found in API.');
-        }
-      } else if (!existingProduct) {
-        console.log('[Scan] Product not found locally. Checking API...');
-        // Try API
-        const apiProduct = await fetchProductFromOpenFoodFacts(data);
-        if (apiProduct) {
-          console.log(`[Scan] Found in API: ${apiProduct.name}`);
-          productData = {
-            barcode: data,
-            productName: apiProduct.name,
-            brand: apiProduct.brand,
-            imageUrl: apiProduct.imageUrl,
-          };
-        } else {
-          console.log('[Scan] Product not found in API.');
-        }
-      }
+      // getProductByBarcode already checks device cache, shared catalog, then providers.
+      // Do not repeat the public API lookup here; keep the scan path single-pass.
 
       const foundProductStart = async (prod: any) => {
         // Step 2: Found
@@ -149,6 +120,8 @@ export default function ScanScreen() {
               productName: prod?.productName,
               imageUrl: prod?.imageUrl,
               brand: prod?.brand,
+              productSource: prod?.source,
+              productSourceLicense: prod?.sourceLicense,
               fromBasket: fromBasket || ''
             }
           });
