@@ -53,7 +53,9 @@ backend/htmlcov/
 .DS_Store
 *.pem
 .env
+.env.*
 .env*.local
+!.env.example
 
 # test artifacts
 *_final.txt
