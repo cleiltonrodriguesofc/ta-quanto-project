@@ -198,6 +198,25 @@ async def get_product(barcode: str, db: AsyncSession = Depends(get_db)):
             except Exception as exc:
                 logger.info("Cosmos lookup failed for %s: %s", barcode, exc)
 
+        if product_data is None and settings.go_upc_api_key:
+            try:
+                response = await client.get(
+                    f"https://go-upc.com/api/v1/code/{barcode}",
+                    headers={"Authorization": f"Bearer {settings.go_upc_api_key}"},
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    product = data.get("product") or {}
+                    name = product.get("name")
+                    if name:
+                        product_data = {
+                            "name": name, "brand": product.get("brand"),
+                            "image_url": product.get("imageUrl"), "categories": [],
+                            "source": "go-upc", "license": None,
+                        }
+            except Exception as exc:
+                logger.info("Go-UPC lookup failed for %s: %s", barcode, exc)
+
     if product_data:
         product = await _save_product(
             db, barcode, product_data["name"], product_data["brand"],

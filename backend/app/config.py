@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
     cosmos_api_token: str = ""
+    go_upc_api_key: str = ""
     cosmos_api_url: str = "https://api.cosmos.bluesoft.com.br/gtins"
     host: str = "0.0.0.0"
     port: int = 8000

@@ -7,7 +7,7 @@ import { ExternalProductResult } from './CosmosProductService';
  */
 export class OpenBeautyFactsProductService {
   private readonly BASE_URL = 'https://world.openbeautyfacts.org/api/v2/product';
-  private readonly USER_AGENT = 'TaQuanto/1.0 (contato@taquanto.app)';
+  private readonly USER_AGENT = 'TaQuanto/1.0 (https://github.com/cleiltonrodriguesofc/ta-quanto-project)';
 
   async fetchByBarcode(barcode: string): Promise<ExternalProductResult | null> {
     try {

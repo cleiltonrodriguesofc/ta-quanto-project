@@ -99,7 +99,7 @@ export async function syncProductCatalogToDevice(): Promise<number> {
     sourceLicense: item.source_license || undefined,
   }));
   const current = await getLocalProducts();
-  const byBarcode = new Map(current.map(product => [product.barcode, product]));
+  const byBarcode = new Map<string, Product>(current.map(product => [product.barcode, product] as const));
   for (const product of incoming) {
     const previous = byBarcode.get(product.barcode);
     byBarcode.set(product.barcode, {
