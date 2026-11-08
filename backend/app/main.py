@@ -82,9 +82,11 @@ async def _product_catalog_sync_loop() -> None:
             raise
         except Exception:
             logging.getLogger("taquanto.catalog_scheduler").exception(
-                "[Product Catalog] sync failed; retrying on the next cycle"
+                "[Product Catalog] sync failed; retrying sooner"
             )
-        await asyncio.sleep(interval)
+            await asyncio.sleep(max(60, settings.product_catalog_sync_retry_seconds))
+        else:
+            await asyncio.sleep(interval)
 
 
 app = FastAPI(

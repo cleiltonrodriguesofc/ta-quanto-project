@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     product_catalog_sync_enabled: bool = True
     product_catalog_sync_interval_seconds: int = 86400
     product_catalog_sync_start_delay_seconds: int = 60
+    product_catalog_sync_retry_seconds: int = 900
     cosmos_api_url: str = "https://api.cosmos.bluesoft.com.br/gtins"
     host: str = "0.0.0.0"
     port: int = 8000

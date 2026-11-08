@@ -22,6 +22,7 @@ Variáveis configuráveis:
 - `PRODUCT_CATALOG_SYNC_ENABLED`: ativa/desativa a tarefa (padrão `true`).
 - `PRODUCT_CATALOG_SYNC_INTERVAL_SECONDS`: intervalo entre ciclos (padrão `86400`).
 - `PRODUCT_CATALOG_SYNC_START_DELAY_SECONDS`: atraso após o startup (padrão `60`).
+- `PRODUCT_CATALOG_SYNC_RETRY_SECONDS`: atraso para tentar novamente após erro (padrão `900`).
 - `PRODUCT_CATALOG_CATEGORIES`: tags separadas por vírgula.
 - `PRODUCT_CATALOG_PAGES_PER_RUN`: páginas por categoria (padrão 1).
 - `PRODUCT_CATALOG_REQUEST_INTERVAL_SECONDS`: pausa entre chamadas (padrão 6 segundos).
@@ -33,7 +34,7 @@ A rotina também pode ser executada manualmente a partir da pasta `backend`:
 python -m scripts.sync_product_catalog
 ```
 
-O Render gratuito suspende um web service após 15 minutos sem tráfego de entrada. Os pings frequentes do monitor de uptime contam como tráfego, então, enquanto eles continuarem chegando, o processo e o agendador permanecem ativos. Se houver suspensão ou reinício, tarefas em memória param; o ciclo volta no próximo startup e o progresso já salvo no banco é retomado. https://render.com/docs/free
+O Render gratuito suspende um web service após 15 minutos sem tráfego de entrada. Os pings frequentes do monitor de uptime contam como tráfego, então, enquanto eles continuarem chegando, o processo e o agendador permanecem ativos. Se houver suspensão ou reinício, tarefas em memória param; o ciclo volta no próximo startup e o progresso já salvo no banco é retomado. [limites das instâncias gratuitas do Render](https://render.com/docs/free)
 
 ## Fontes, qualidade e licença
 
