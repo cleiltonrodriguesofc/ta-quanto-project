@@ -19,7 +19,7 @@ import {
   launchCameraAsync,
   requestCameraPermissionsAsync
 } from 'expo-image-picker';
-import { savePriceEntry } from '@/utils/storage';
+import { getProductByBarcode, savePriceEntry } from '@/utils/storage';
 import { SupermarketSelector } from '@/components/SupermarketSelector';
 import { useSupermarketSession } from '@/context/SupermarketContext';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +32,8 @@ export default function RegisterScreen() {
   const { t } = useTranslation();
   const { selectedSupermarket, setSelectedSupermarket, addToBasket } = useSupermarketSession();
   const hasInitialized = useRef(false);
+  const productNameEdited = useRef(false);
+  const brandEdited = useRef(false);
 
   const [productName, setProductName] = useState('');
   const [price, setPrice] = useState('');
@@ -39,6 +41,7 @@ export default function RegisterScreen() {
   const [barcode, setBarcode] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [brand, setBrand] = useState('');
+  const [productSource, setProductSource] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -55,6 +58,7 @@ export default function RegisterScreen() {
       if (params.productName) setProductName(params.productName as string);
       if (params.imageUrl) setImageUrl(params.imageUrl as string);
       if (params.brand) setBrand(params.brand as string);
+      if (params.productSource) setProductSource(params.productSource as string);
 
       hasInitialized.current = true;
     }
@@ -64,6 +68,30 @@ export default function RegisterScreen() {
       setSupermarket(selectedSupermarket);
     }
   }, [params, selectedSupermarket]);
+
+  useEffect(() => {
+    const scannedBarcode = typeof params.barcode === 'string' ? params.barcode : '';
+    if (!scannedBarcode) return;
+    let active = true;
+
+    // Product metadata is useful, but the form and price entry stay usable
+    // while the device cache, shared catalog, or providers are being checked.
+    void getProductByBarcode(scannedBarcode).then(product => {
+      if (!active || !product) return;
+      if (!productNameEdited.current) {
+        setProductName(current => current || product.name || '');
+      }
+      if (!brandEdited.current) {
+        setBrand(current => current || product.brand || '');
+      }
+      setImageUrl(current => current || product.imageUrl || '');
+      if (product.source) setProductSource(product.source);
+    }).catch(error => {
+      console.warn('[Register] Background product enrichment failed:', error);
+    });
+
+    return () => { active = false; };
+  }, [params.barcode]);
 
 
   const handleTakePhoto = async () => {
@@ -186,7 +214,7 @@ export default function RegisterScreen() {
             )}
           </View>
 
-          {typeof params.productSource === 'string' && params.productSource === 'openfoodfacts' && (
+          {productSource === 'openfoodfacts' && (
             <Text style={styles.sourceAttribution}>
               Product data: Open Food Facts (ODbL/DbCL). Product images: CC BY-SA.
             </Text>
@@ -197,7 +225,10 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               value={productName}
-              onChangeText={setProductName}
+              onChangeText={value => {
+                productNameEdited.current = true;
+                setProductName(value);
+              }}
               placeholder="e.g., Coca-Cola 2L"
             />
           </View>
@@ -227,7 +258,10 @@ export default function RegisterScreen() {
             <TextInput
               style={styles.input}
               value={brand}
-              onChangeText={setBrand}
+              onChangeText={value => {
+                brandEdited.current = true;
+                setBrand(value);
+              }}
               placeholder="e.g., Coca-Cola"
             />
           </View>

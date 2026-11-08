@@ -13,7 +13,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter, useFocusEffect, useLocalSearchParams, useIsFocused } from 'expo-router';
 import { ArrowLeft, Flashlight, CheckCircle2, AlertCircle, Search } from 'lucide-react-native';
 import { PriceEntry } from '@/types/price';
-import { getProductByBarcode, getPricesByBarcode } from '@/utils/storage';
+import { getCachedProductByBarcode, getLocalPrices, getProductByBarcode } from '@/utils/storage';
 import { SupermarketSessionModal } from '@/components/SupermarketSessionModal';
 import { useTranslation } from 'react-i18next';
 import { useSupermarketSession } from '@/context/SupermarketContext';
@@ -69,91 +69,50 @@ export default function ScanScreen() {
     console.log(`[Scan] Barcode detected: ${data} (Type: ${type})`);
 
     try {
-      // Step 1: Searching
-      setStatus('searching');
-      setStatusMessage(t('searching_product'));
+      // Resolve from on-device cache only. A barcode scan must never wait for
+      // Render or a public product provider before opening the next screen.
+      const [cachedProduct, cachedPrices] = await Promise.all([
+        getCachedProductByBarcode(data),
+        getLocalPrices(data),
+      ]);
+      const localPrice = cachedPrices.find((item: PriceEntry) => item.supermarket === selectedSupermarket)
+        || cachedPrices[0];
+      const productName = cachedProduct?.name || localPrice?.productName;
+      const imageUrl = cachedProduct?.imageUrl || localPrice?.imageUrl;
+      const brand = cachedProduct?.brand || localPrice?.brand;
 
-      // Artificial delay for UX (to allow user to read the message)
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      const rawProduct = await getProductByBarcode(data);
-      const existingProduct = rawProduct ? {
-        ...rawProduct,
-        productName: rawProduct.name || (rawProduct as any).productName
-      } as Partial<PriceEntry> : null;
-      let productData: Partial<PriceEntry> | null = existingProduct;
-
-      // getProductByBarcode already checks device cache, shared catalog, then providers.
-      // Do not repeat the public API lookup here; keep the scan path single-pass.
-
-      const foundProductStart = async (prod: any) => {
-        // Step 2: Found
-        setStatus('found');
-        setStatusMessage(t('product_found'));
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        // Step 3: Checking Prices
-        setStatus('checking_price');
-        setStatusMessage(t('checking_prices'));
-
-        const prices = await getPricesByBarcode(data);
-        // Check if price exists for CURRENT supermarket
-        const hasPriceInCurrentSupermarket = selectedSupermarket && prices.some((p: PriceEntry) => p.supermarket === selectedSupermarket);
-
-        if (hasPriceInCurrentSupermarket) {
-          // Success - Redirect to Product Details
-          setStatus('success');
-          await new Promise(resolve => setTimeout(resolve, 500));
-          // Pass fromBasket param
-          router.push(`/product/${data}?fromBasket=${fromBasket || ''}`);
-        } else {
-          // Price not found for this supermarket
-          setStatus('price_not_found');
-          setStatusMessage(t('price_not_found_supermarket'));
-          await new Promise(resolve => setTimeout(resolve, 1500));
-
-          // Redirect to Register
-          router.push({
-            pathname: '/register',
-            params: {
-              barcode: data,
-              productName: prod?.productName,
-              imageUrl: prod?.imageUrl,
-              brand: prod?.brand,
-              productSource: prod?.source,
-              productSourceLicense: prod?.sourceLicense,
-              fromBasket: fromBasket || ''
-            }
-          });
-        }
-      };
-
-      if (productData) {
-        await foundProductStart(productData);
-      } else {
-        // Product totally unknown
-        setStatus('price_not_found');
-        setStatusMessage(t('be_the_first'));
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        router.push({
-          pathname: '/register',
-          params: { barcode: data, fromBasket: fromBasket || '' }
+      // Enrich this device's catalog after navigation; do not block the scan.
+      if (!cachedProduct) {
+        void getProductByBarcode(data).catch(error => {
+          console.warn('[Scan] Background product lookup failed:', error);
         });
       }
 
+      if (
+        (selectedSupermarket && localPrice?.supermarket === selectedSupermarket)
+        || cachedProduct
+        || cachedPrices.length > 0
+      ) {
+        // The details screen loads shared backend prices when the device has
+        // no local match, while the camera itself stays responsive.
+        router.push(`/product/${data}?fromBasket=${fromBasket || ''}`);
+      } else {
+        router.push({
+          pathname: '/register',
+          params: {
+            barcode: data,
+            productName,
+            imageUrl,
+            brand,
+            fromBasket: fromBasket || '',
+          },
+        });
+      }
     } catch (error) {
       console.error('Error processing barcode:', error);
       Alert.alert(t('error'), t('error'));
       setScanned(false);
       setStatus('idle');
-    } finally {
-      if (status === 'success' || status === 'price_not_found') {
-        setTimeout(() => {
-          setScanned(false);
-          setStatus('idle');
-        }, 1000);
-      }
     }
   };
 
@@ -202,7 +161,7 @@ export default function ScanScreen() {
     <View style={styles.container}>
       {isFocused && (
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={flash}
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
@@ -296,7 +255,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'space-between',
     zIndex: 1,
   },
@@ -359,7 +318,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   statusOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,

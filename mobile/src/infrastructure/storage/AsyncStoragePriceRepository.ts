@@ -3,6 +3,7 @@ import { IPriceRepository } from '@/src/domain/repositories';
 import { Price, NewPrice } from '@/src/domain/entities';
 
 const STORAGE_KEY = 'taquanto_prices';
+const PENDING_KEY = 'taquanto_pending_prices';
 
 export class AsyncStoragePriceRepository implements IPriceRepository {
   async getAll(barcode?: string): Promise<Price[]> {
@@ -30,7 +31,22 @@ export class AsyncStoragePriceRepository implements IPriceRepository {
     const fullPrice: Price = { ...price, id };
     const updated = [fullPrice, ...prices];
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    const pendingIds = await this.getPendingIds();
+    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify([...new Set([...pendingIds, id])]));
     return fullPrice;
+  }
+
+  async getPending(): Promise<Price[]> {
+    const [prices, pendingIds] = await Promise.all([this.getAll(), this.getPendingIds()]);
+    const pending = new Set(pendingIds);
+    return prices.filter(price => pending.has(price.id));
+  }
+
+  async markSynced(ids: string[]): Promise<void> {
+    if (!ids.length) return;
+    const synced = new Set(ids);
+    const pendingIds = await this.getPendingIds();
+    await AsyncStorage.setItem(PENDING_KEY, JSON.stringify(pendingIds.filter(id => !synced.has(id))));
   }
 
   async batchUpload(prices: NewPrice[]): Promise<void> {
@@ -45,5 +61,15 @@ export class AsyncStoragePriceRepository implements IPriceRepository {
 
   async clear(): Promise<void> {
     await AsyncStorage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(PENDING_KEY);
+  }
+
+  private async getPendingIds(): Promise<string[]> {
+    try {
+      const stored = await AsyncStorage.getItem(PENDING_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
   }
 }

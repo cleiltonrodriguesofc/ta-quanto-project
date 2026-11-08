@@ -6,7 +6,7 @@ import {
   asyncStorageSupermarketRepository,
   asyncStorageBasketRepository,
 } from '@/src/infrastructure/storage';
-import { getPricesByBarcodeUseCase, lookupProductUseCase, registerPriceUseCase } from '@/src/application';
+import { getPricesByBarcodeUseCase, lookupProductUseCase } from '@/src/application';
 import { Supermarket, Product } from '@/src/domain/entities';
 import { apiClient } from '@/src/infrastructure/api/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,7 +24,7 @@ export const getPricesByBarcode = async (barcode: string): Promise<PriceEntry[]>
 };
 
 export async function storePrice(price: Partial<PriceEntry>): Promise<PriceEntry> {
-  const added = await registerPriceUseCase.execute({
+  const added = await asyncStoragePriceRepository.add({
     barcode: price.barcode || '',
     productName: price.productName || '',
     price: price.price || 0,
@@ -33,6 +33,11 @@ export async function storePrice(price: Partial<PriceEntry>): Promise<PriceEntry
     imageUrl: price.imageUrl,
     userId: price.userId,
     timestamp: price.timestamp || new Date().toISOString(),
+  });
+  // Return as soon as the device has durably stored the report. Network sync
+  // runs after the save and cannot delay the registration screen.
+  void import('./syncService').then(({ syncOfflineData }) => syncOfflineData()).catch(error => {
+    console.warn('[storage] Background price sync failed:', error);
   });
   return added as unknown as PriceEntry;
 }
@@ -80,6 +85,11 @@ export const getLocalProducts = async (): Promise<Product[]> => {
   return stored ? JSON.parse(stored) : [];
 };
 
+export const getCachedProductByBarcode = async (barcode: string): Promise<Product | null> => {
+  const products = await getLocalProducts();
+  return products.find(product => product.barcode === barcode) || null;
+};
+
 export const saveLocalProducts = async (products: Product[]): Promise<void> => {
   await AsyncStorage.setItem(PRODUCT_CACHE_KEY, JSON.stringify(products));
 };
@@ -114,6 +124,21 @@ export async function syncProductCatalogToDevice(): Promise<number> {
 }
 
 export const getProductByBarcode = async (barcode: string): Promise<Product | null> => {
+  const existingLookup = productLookupsInFlight.get(barcode);
+  if (existingLookup) return existingLookup;
+
+  const lookup = findOrFetchProductByBarcode(barcode);
+  productLookupsInFlight.set(barcode, lookup);
+  try {
+    return await lookup;
+  } finally {
+    productLookupsInFlight.delete(barcode);
+  }
+};
+
+const productLookupsInFlight = new Map<string, Promise<Product | null>>();
+
+const findOrFetchProductByBarcode = async (barcode: string): Promise<Product | null> => {
   const local = await getLocalProducts();
   const cached = local.find(product => product.barcode === barcode);
   if (cached) return cached;

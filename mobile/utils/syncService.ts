@@ -1,9 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from './api';
-import { getStoredPrices, clearStoredPrices, saveLocalProducts, saveLocalSupermarkets } from './storage';
+import { saveLocalSupermarkets } from './storage';
 import { getSupermarketsUseCase } from '@/src/application';
+import { asyncStoragePriceRepository } from '@/src/infrastructure/storage';
+import { apiPriceRepository } from '@/src/infrastructure/api';
+
+let activePriceSync: Promise<{ syncedCount: number; errors: string[] }> | null = null;
 
 export const syncOfflineData = async (): Promise<{ syncedCount: number; errors: string[] }> => {
+  if (activePriceSync) return activePriceSync;
+  activePriceSync = runPriceSync();
+  try {
+    return await activePriceSync;
+  } finally {
+    activePriceSync = null;
+  }
+};
+
+const runPriceSync = async (): Promise<{ syncedCount: number; errors: string[] }> => {
   const errors: string[] = [];
   let syncedCount = 0;
 
@@ -14,11 +27,17 @@ export const syncOfflineData = async (): Promise<{ syncedCount: number; errors: 
   }
 
   try {
-    const offlinePrices = await getStoredPrices();
+    const offlinePrices = await asyncStoragePriceRepository.getPending();
     if (offlinePrices.length > 0) {
-      await api.uploadPricesBatch(offlinePrices);
-      syncedCount = offlinePrices.length;
-      await clearStoredPrices();
+      for (const price of offlinePrices) {
+        try {
+          await apiPriceRepository.add(price);
+          await asyncStoragePriceRepository.markSynced([price.id]);
+          syncedCount += 1;
+        } catch (error: any) {
+          errors.push(error?.message || 'Price sync failed');
+        }
+      }
     }
   } catch (error: any) {
     console.error('[syncService] Error syncing offline data:', error);
