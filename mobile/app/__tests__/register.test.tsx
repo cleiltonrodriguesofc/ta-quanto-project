@@ -51,6 +51,9 @@ const mockAlert = Alert.alert as jest.Mock;
 describe('RegisterScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    if (mockStorage.getProductByBarcode) {
+      mockStorage.getProductByBarcode.mockResolvedValue(null);
+    }
   });
 
   it('should render register form correctly', () => {

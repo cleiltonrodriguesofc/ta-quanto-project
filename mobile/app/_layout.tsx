@@ -103,6 +103,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="auth/login" />
           <Stack.Screen name="auth/register" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="scan" />
           <Stack.Screen name="product/[barcode]" />
           <Stack.Screen name="supermarket/[id]" />
           <Stack.Screen name="+not-found" />

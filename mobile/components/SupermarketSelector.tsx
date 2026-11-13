@@ -157,12 +157,12 @@ export const SupermarketSelector: React.FC<SupermarketSelectorProps> = ({
                                             <Text style={styles.addButtonText}>{t('add')} &quot;{searchText}&quot;</Text>
 
                                         </TouchableOpacity>
-                                    ) : null
+                                    ) : undefined
                                 }
                                 ListEmptyComponent={
                                     !searchText ? (
                                         <Text style={styles.emptyText}>{t('no_supermarkets_found')}</Text>
-                                    ) : null
+                                    ) : undefined
                                 }
                             />
                         )}

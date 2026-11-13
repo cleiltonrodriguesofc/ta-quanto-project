@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Bell } from 'lucide-react-native';
 import { MOCK_POSTS } from '@/utils/mockSocialData';
@@ -27,7 +28,7 @@ export default function SocialScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <StatusBar style="dark" />
 
             {/* Header */}
             <View style={styles.header}>

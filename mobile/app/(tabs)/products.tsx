@@ -55,8 +55,8 @@ export default function ProductsScreen() {
             style={styles.card}
             onPress={() =>
                 router.push({
-                    pathname: '/product/[id]',
-                    params: { id: item.barcode, name: item.name },
+                    pathname: '/product/[barcode]',
+                    params: { barcode: item.barcode, name: item.name },
                 })
             }
         >

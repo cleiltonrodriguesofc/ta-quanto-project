@@ -7,12 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "taquanto",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#3A7DE8"
-    },
-    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.taquanto.app"
@@ -40,7 +34,15 @@
       "expo-font",
       "expo-web-browser",
       "expo-localization",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#3A7DE8"
+        }
+      ],
       "expo-status-bar"
     ],
     "experiments": {

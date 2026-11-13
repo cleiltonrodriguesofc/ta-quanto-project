@@ -32,7 +32,11 @@ export default function RegisterScreen() {
   const fromProduct = params.fromProduct === 'true';
   const { t } = useTranslation();
   const { selectedSupermarket, setSelectedSupermarket, addToBasket } = useSupermarketSession();
-  const hasInitialized = useRef(false);
+  // Track which barcode we last initialized for, so re-navigating to the same
+  // screen with a different barcode (or the same barcode a second time after
+  // the component has been kept alive in the Navigator cache) always resets
+  // the form with fresh data instead of showing stale values.
+  const initializedForBarcode = useRef<string | null>(null);
   const productNameEdited = useRef(false);
   const brandEdited = useRef(false);
 
@@ -47,24 +51,30 @@ export default function RegisterScreen() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (params.barcode && params.barcode !== globalLastLoggedBarcode) {
+    const incomingBarcode = typeof params.barcode === 'string' ? params.barcode : '';
+
+    if (incomingBarcode && incomingBarcode !== globalLastLoggedBarcode) {
       console.log('Register params:', params);
-      globalLastLoggedBarcode = params.barcode as string;
+      globalLastLoggedBarcode = incomingBarcode;
     }
 
-    // Only initialize fields ONCE when the screen opens with target params.
-    // This prevents them from "snapping back" if the user clears the field later.
-    if (!hasInitialized.current && params.barcode) {
-      if (params.barcode) setBarcode(params.barcode as string);
-      if (params.productName) setProductName(params.productName as string);
-      if (params.imageUrl) setImageUrl(params.imageUrl as string);
-      if (params.brand) setBrand(params.brand as string);
-      if (params.productSource) setProductSource(params.productSource as string);
-
-      hasInitialized.current = true;
+    // Re-initialize whenever the barcode changes. This covers two cases:
+    //  1. User scans a different product (new barcode).
+    //  2. User is taken back to this screen for the same product after the
+    //     component stayed mounted in the Navigator cache.
+    if (incomingBarcode && initializedForBarcode.current !== incomingBarcode) {
+      setBarcode(incomingBarcode);
+      setProductName(typeof params.productName === 'string' ? params.productName : '');
+      setImageUrl(typeof params.imageUrl === 'string' ? params.imageUrl : '');
+      setBrand(typeof params.brand === 'string' ? params.brand : '');
+      setProductSource(typeof params.productSource === 'string' ? params.productSource : '');
+      setPrice('');
+      productNameEdited.current = false;
+      brandEdited.current = false;
+      initializedForBarcode.current = incomingBarcode;
     }
 
-    // Initialize supermarket from global session if available
+    // Keep supermarket in sync with the global session.
     if (selectedSupermarket) {
       setSupermarket(selectedSupermarket);
     }
@@ -77,7 +87,7 @@ export default function RegisterScreen() {
 
     // Product metadata is useful, but the form and price entry stay usable
     // while the device cache, shared catalog, or providers are being checked.
-    void getProductByBarcode(scannedBarcode).then(product => {
+    void Promise.resolve(getProductByBarcode(scannedBarcode)).then(product => {
       if (!active || !product) return;
       if (!productNameEdited.current) {
         setProductName(current => current || product.name || '');

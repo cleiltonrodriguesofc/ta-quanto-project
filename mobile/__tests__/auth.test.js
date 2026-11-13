@@ -23,7 +23,7 @@ jest.mock('expo-auth-session', () => ({
 
 jest.mock('expo-auth-session/build/QueryParams', () => ({
     getQueryParams: jest.fn(() => ({ access_token: '123', refresh_token: '456' })),
-}));
+}), { virtual: true });
 
 // Mock Supabase
 jest.mock('../utils/supabase', () => ({

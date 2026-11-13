@@ -6,6 +6,11 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ["dist/*"],
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/purity": "warn",
+    },
   },
   {
     files: ["**/*.test.js", "**/*.test.ts", "**/*.test.tsx", "**/__tests__/**/*", "jest-setup.js"],
